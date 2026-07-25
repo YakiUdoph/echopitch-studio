@@ -294,13 +294,13 @@ export default function Home() {
         >
           <span className={`inline-flex items-center gap-1.5 rounded-full ${themeObj.accentBg} px-3.5 py-1 text-xs font-semibold ${themeObj.accentText} ${themeObj.accentBorder} border backdrop-blur-md shadow-sm`}>
             <Zap className="h-3.5 w-3.5" />
-            ⚡ OKX ASP Ecosystem Engine ({pitchDuration}s Mode)
+            ⚡ Powered by OKX.AI ASP Engine ({pitchDuration}s Mode)
           </span>
           <h1 className="text-3xl sm:text-5xl font-black tracking-tight bg-gradient-to-b from-zinc-900 via-zinc-800 to-zinc-600 dark:from-white dark:via-zinc-200 dark:to-zinc-500 bg-clip-text text-transparent">
-            Turn Repos into {pitchDuration}s Pitch Videos
+            Turn Any Codebase into High-Impact Pitch Videos
           </h1>
           <p className="text-sm sm:text-base text-zinc-600 dark:text-zinc-400 font-medium leading-relaxed">
-            Auto-extract GitHub READMEs into interactive slide storyboards & valid OKX.AI Agent payloads.
+            Auto-extract GitHub READMEs into interactive slide storyboards, synthetic voiceovers, and agent skill payloads.
           </p>
         </motion.div>
       </section>

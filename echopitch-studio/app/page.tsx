@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Header, TabType } from "./components/Header";
+import { WorkspaceControlToolbar } from "./components/WorkspaceControlToolbar";
 import { StudioTab } from "./components/StudioTab";
 import { ScriptInspector } from "./components/ScriptInspector";
 import { AspIntegration } from "./components/AspIntegration";
@@ -257,30 +258,22 @@ export default function Home() {
         }}
       />
 
-      {/* Header Bar */}
+      {/* Tier 1: Global Top Navbar */}
       <Header
         activeTab={activeTab}
         setActiveTab={setActiveTab}
-        isExpertMode={isExpertMode}
-        onToggleExpertMode={() => setIsExpertMode(!isExpertMode)}
-        onRunTestDefi={handleRunTestDefi}
-        onRunTestMarketplace={handleRunTestMarketplace}
         onOpenExportModal={() => setIsExportModalOpen(true)}
-        isProcessing={isProcessing}
-        activePresetName={activePresetName}
-        pitchDuration={pitchDuration}
-        onSelectPitchDuration={handleSelectPitchDuration}
         themePreset={themePreset}
         onSelectThemePreset={setThemePreset}
       />
 
       {/* Hero Header Section */}
-      <section className="relative z-10 w-full max-w-7xl mx-auto px-6 pt-12 pb-6 text-left flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 border-b border-zinc-200 dark:border-zinc-900/80">
+      <section className="relative z-10 w-full max-w-7xl mx-auto px-6 pt-10 pb-4 text-left flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 border-b border-zinc-200 dark:border-zinc-900/80">
         <motion.div
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="flex flex-col items-start gap-3.5 max-w-3xl"
+          className="flex flex-col items-start gap-3 max-w-3xl"
         >
           <span className={`inline-flex items-center gap-1.5 rounded-full ${themeObj.accentBg} px-3.5 py-1 text-xs font-semibold ${themeObj.accentText} ${themeObj.accentBorder} border backdrop-blur-md shadow-sm`}>
             <Zap className="h-3.5 w-3.5" />
@@ -294,6 +287,14 @@ export default function Home() {
           </p>
         </motion.div>
       </section>
+
+      {/* Tier 2: Workspace Control Sub-Toolbar */}
+      <WorkspaceControlToolbar
+        pitchDuration={pitchDuration}
+        onSelectPitchDuration={handleSelectPitchDuration}
+        isExpertMode={isExpertMode}
+        onToggleExpertMode={() => setIsExpertMode(!isExpertMode)}
+      />
 
       {/* Main Workspace Body */}
       <main className="relative z-10 flex-1 w-full max-w-7xl mx-auto px-6 py-12 space-y-10">

@@ -183,14 +183,14 @@ export const StudioTab: React.FC<StudioTabProps> = ({
           {/* Quick-Select Demo Presets Bar */}
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-              Quick Presets:
+              Try:
             </span>
             <button
               onClick={() => {
                 onUpdateGithubUrl("https://github.com/echopitch/x-vault-ai");
                 if (onFetchGithubRepo) onFetchGithubRepo("https://github.com/echopitch/x-vault-ai");
               }}
-              className="rounded-lg bg-zinc-100 dark:bg-zinc-900 px-2.5 py-1 font-mono text-[11px] text-emerald-600 dark:text-emerald-400 border border-zinc-300 dark:border-zinc-800 hover:border-emerald-500 transition-all"
+              className="rounded-lg bg-zinc-100 dark:bg-zinc-900 px-2.5 py-1 font-mono text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 border border-zinc-300 dark:border-zinc-800 hover:border-emerald-500 transition-all cursor-pointer"
             >
               ⚡ X-Vault AI
             </button>
@@ -199,7 +199,7 @@ export const StudioTab: React.FC<StudioTabProps> = ({
                 onUpdateGithubUrl("https://github.com/echopitch/neurogrid-asp");
                 if (onFetchGithubRepo) onFetchGithubRepo("https://github.com/echopitch/neurogrid-asp");
               }}
-              className="rounded-lg bg-zinc-100 dark:bg-zinc-900 px-2.5 py-1 font-mono text-[11px] text-cyan-600 dark:text-cyan-400 border border-zinc-300 dark:border-zinc-800 hover:border-cyan-500 transition-all"
+              className="rounded-lg bg-zinc-100 dark:bg-zinc-900 px-2.5 py-1 font-mono text-[11px] font-semibold text-cyan-600 dark:text-cyan-400 border border-zinc-300 dark:border-zinc-800 hover:border-cyan-500 transition-all cursor-pointer"
             >
               🚀 NeuroGrid ASP
             </button>
@@ -208,7 +208,7 @@ export const StudioTab: React.FC<StudioTabProps> = ({
                 onUpdateGithubUrl("https://github.com/echopitch/defi-yield-engine");
                 if (onFetchGithubRepo) onFetchGithubRepo("https://github.com/echopitch/defi-yield-engine");
               }}
-              className="rounded-lg bg-zinc-100 dark:bg-zinc-900 px-2.5 py-1 font-mono text-[11px] text-amber-600 dark:text-amber-400 border border-zinc-300 dark:border-zinc-800 hover:border-amber-500 transition-all"
+              className="rounded-lg bg-zinc-100 dark:bg-zinc-900 px-2.5 py-1 font-mono text-[11px] font-semibold text-amber-600 dark:text-amber-400 border border-zinc-300 dark:border-zinc-800 hover:border-amber-500 transition-all cursor-pointer"
             >
               🔥 YieldPulse Engine
             </button>

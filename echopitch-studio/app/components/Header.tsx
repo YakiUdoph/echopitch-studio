@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 import { Tooltip } from "./Tooltip";
+import { PitchDuration, ThemePreset, THEME_PRESETS } from "../lib/mockData";
 import {
   Zap,
   Rocket,
@@ -11,7 +12,9 @@ import {
   Cpu,
   Share2,
   Sun,
-  Moon
+  Moon,
+  Clock,
+  Palette
 } from "lucide-react";
 
 export type TabType = "studio" | "script" | "asp";
@@ -26,6 +29,10 @@ interface HeaderProps {
   onOpenExportModal: () => void;
   isProcessing: boolean;
   activePresetName: string;
+  pitchDuration: PitchDuration;
+  onSelectPitchDuration: (duration: PitchDuration) => void;
+  themePreset: ThemePreset;
+  onSelectThemePreset: (preset: ThemePreset) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -37,7 +44,11 @@ export const Header: React.FC<HeaderProps> = ({
   onRunTestMarketplace,
   onOpenExportModal,
   isProcessing,
-  activePresetName
+  activePresetName,
+  pitchDuration,
+  onSelectPitchDuration,
+  themePreset,
+  onSelectThemePreset
 }) => {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -45,6 +56,8 @@ export const Header: React.FC<HeaderProps> = ({
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const activeThemeObj = THEME_PRESETS[themePreset] || THEME_PRESETS.matrix;
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-zinc-200 dark:border-zinc-800/80 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-2xl transition-colors duration-300">
@@ -167,8 +180,61 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         </nav>
 
-        {/* Far Right: Mode Toggle, Theme Toggle & Export Button */}
+        {/* Far Right: Feature 1 Duration Selector, Feature 3 Theme Engine, Mode Toggle & Export Button */}
         <div className="flex items-center gap-2.5">
+          {/* Feature 1: Dynamic Pitch Duration Selector */}
+          <div className="hidden sm:flex items-center rounded-xl bg-zinc-100 dark:bg-zinc-900 p-1 border border-zinc-200 dark:border-zinc-800 text-xs">
+            <span className="px-2 text-[10px] font-bold text-zinc-400 uppercase flex items-center gap-1">
+              <Clock className="h-3 w-3 text-emerald-400" />
+              Duration:
+            </span>
+            <button
+              onClick={() => onSelectPitchDuration(60)}
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                pitchDuration === 60
+                  ? "bg-emerald-600 text-white shadow-sm"
+                  : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200"
+              }`}
+            >
+              60s
+            </button>
+            <button
+              onClick={() => onSelectPitchDuration(90)}
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                pitchDuration === 90
+                  ? "bg-emerald-600 text-white shadow-sm"
+                  : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200"
+              }`}
+            >
+              90s
+            </button>
+            <button
+              onClick={() => onSelectPitchDuration(180)}
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                pitchDuration === 180
+                  ? "bg-emerald-600 text-white shadow-sm"
+                  : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200"
+              }`}
+            >
+              3-Min
+            </button>
+          </div>
+
+          {/* Feature 3: Visual Theme Engine Dropdown */}
+          <div className="flex items-center rounded-xl bg-zinc-100 dark:bg-zinc-900 px-2 py-1 border border-zinc-200 dark:border-zinc-800 text-xs">
+            <Palette className="h-3.5 w-3.5 text-indigo-400 mr-1.5" />
+            <select
+              value={themePreset}
+              onChange={(e) => onSelectThemePreset(e.target.value as ThemePreset)}
+              className="bg-transparent text-xs font-semibold text-zinc-700 dark:text-zinc-200 focus:outline-none cursor-pointer"
+            >
+              <option value="matrix">OKX Matrix</option>
+              <option value="cyberpunk">Cyberpunk Neon</option>
+              <option value="gold">Web3 Gold</option>
+              <option value="terminal">Dev Terminal</option>
+            </select>
+          </div>
+
           {/* Light / Dark Mode Toggle Button */}
           {mounted && (
             <button
@@ -185,7 +251,7 @@ export const Header: React.FC<HeaderProps> = ({
           )}
 
           {/* Progressive Disclosure Toggle (Simple vs Expert Mode) */}
-          <div className="flex items-center gap-2 rounded-xl bg-zinc-100 dark:bg-zinc-900 px-3 py-1.5 border border-zinc-200 dark:border-zinc-800">
+          <div className="hidden lg:flex items-center gap-2 rounded-xl bg-zinc-100 dark:bg-zinc-900 px-3 py-1.5 border border-zinc-200 dark:border-zinc-800">
             <span className={`text-[11px] font-semibold ${!isExpertMode ? "text-emerald-600 dark:text-emerald-400 font-bold" : "text-zinc-400 dark:text-zinc-500"}`}>
               Simple
             </span>
@@ -212,7 +278,7 @@ export const Header: React.FC<HeaderProps> = ({
             className="flex items-center gap-1.5 rounded-xl bg-zinc-900 dark:bg-zinc-800 text-white border border-zinc-800 dark:border-zinc-700/80 px-3.5 py-1.5 text-xs font-semibold shadow-sm hover:bg-zinc-800 dark:hover:bg-zinc-700 transition-all"
           >
             <Share2 className="h-3.5 w-3.5 text-emerald-400" />
-            <span className="hidden sm:inline">ASP Payload</span>
+            <span className="hidden sm:inline">Export Assets</span>
           </button>
         </div>
       </div>

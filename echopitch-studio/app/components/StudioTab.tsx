@@ -41,6 +41,8 @@ interface StudioTabProps {
   onChangeSpeed: (speed: number) => void;
   speechCharIndex?: number;
   speechCharTotal?: number;
+  pitchDuration?: number;
+  onFetchGithubRepo?: (url: string) => void;
 }
 
 export const StudioTab: React.FC<StudioTabProps> = ({
@@ -65,7 +67,9 @@ export const StudioTab: React.FC<StudioTabProps> = ({
   playbackSpeed,
   onChangeSpeed,
   speechCharIndex = 0,
-  speechCharTotal = 140
+  speechCharTotal = 140,
+  pitchDuration = 90,
+  onFetchGithubRepo
 }) => {
   const [inputMode, setInputMode] = useState<"github" | "paste">("paste");
   const [isSourceMarkdownOpen, setIsSourceMarkdownOpen] = useState<boolean>(false);
@@ -144,57 +148,88 @@ export const StudioTab: React.FC<StudioTabProps> = ({
           </div>
         </div>
 
-        {/* Collapsible Input Drawer Body */}
-        {isSourceMarkdownOpen && (
-          <div className="mt-6 pt-5 border-t border-zinc-800/80 flex flex-col gap-4 animate-in fade-in">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-zinc-300">
-                Select Input Mode
+        {/* Prominent Hero Input Bar */}
+        <div className="mt-4 flex flex-col gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                value={githubUrl}
+                onChange={(e) => onUpdateGithubUrl(e.target.value)}
+                placeholder="Enter GitHub Repo URL (e.g. https://github.com/echopitch/x-vault-ai)"
+                className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-950 px-4 py-3 font-mono text-xs text-zinc-900 dark:text-zinc-200 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none transition-all shadow-inner"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[10px] text-zinc-400 bg-zinc-200 dark:bg-zinc-800 px-2 py-0.5 rounded">
+                GitHub API
               </span>
-              <div className="flex items-center rounded-xl bg-zinc-950 p-1 border border-zinc-800 text-xs">
-                <button
-                  onClick={() => setInputMode("paste")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all font-semibold ${
-                    inputMode === "paste"
-                      ? "bg-zinc-800 text-white shadow-sm"
-                      : "text-zinc-400 hover:text-zinc-200"
-                  }`}
-                >
-                  <FileCode className="h-3.5 w-3.5" />
-                  Paste README Text
-                </button>
-                <button
-                  onClick={() => setInputMode("github")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all font-semibold ${
-                    inputMode === "github"
-                      ? "bg-zinc-800 text-white shadow-sm"
-                      : "text-zinc-400 hover:text-zinc-200"
-                  }`}
-                >
-                  <GitBranch className="h-3.5 w-3.5" />
-                  GitHub Repository URL
-                </button>
-              </div>
             </div>
 
-            {inputMode === "github" ? (
-              <div className="flex flex-col sm:flex-row gap-3">
-                <input
-                  type="text"
-                  value={githubUrl}
-                  onChange={(e) => onUpdateGithubUrl(e.target.value)}
-                  placeholder="https://github.com/org/repo (e.g. https://github.com/echopitch/x-vault-ai)"
-                  className="flex-1 rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 font-mono text-xs text-zinc-200 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none"
-                />
-              </div>
-            ) : (
-              <textarea
-                value={readmeText}
-                onChange={(e) => onUpdateReadmeText(e.target.value)}
-                placeholder="Paste raw README markdown text here..."
-                className="h-36 w-full rounded-xl border border-zinc-700 bg-zinc-950 p-4 font-mono text-xs text-zinc-200 placeholder-zinc-600 focus:border-emerald-500 focus:outline-none resize-none"
-              />
-            )}
+            <button
+              onClick={() => {
+                if (onFetchGithubRepo) {
+                  onFetchGithubRepo(githubUrl);
+                } else {
+                  onRunAiParser();
+                }
+              }}
+              disabled={isProcessing}
+              className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 px-6 py-3 text-xs font-bold text-white shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] disabled:opacity-50 transition-all duration-300 hover:scale-105 shrink-0"
+            >
+              <Sparkles className="h-4 w-4" />
+              <span>Fetch & Parse Repo ({pitchDuration}s)</span>
+            </button>
+          </div>
+
+          {/* Quick-Select Demo Presets Bar */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+              Quick Presets:
+            </span>
+            <button
+              onClick={() => {
+                onUpdateGithubUrl("https://github.com/echopitch/x-vault-ai");
+                if (onFetchGithubRepo) onFetchGithubRepo("https://github.com/echopitch/x-vault-ai");
+              }}
+              className="rounded-lg bg-zinc-100 dark:bg-zinc-900 px-2.5 py-1 font-mono text-[11px] text-emerald-600 dark:text-emerald-400 border border-zinc-300 dark:border-zinc-800 hover:border-emerald-500 transition-all"
+            >
+              ⚡ X-Vault AI
+            </button>
+            <button
+              onClick={() => {
+                onUpdateGithubUrl("https://github.com/echopitch/neurogrid-asp");
+                if (onFetchGithubRepo) onFetchGithubRepo("https://github.com/echopitch/neurogrid-asp");
+              }}
+              className="rounded-lg bg-zinc-100 dark:bg-zinc-900 px-2.5 py-1 font-mono text-[11px] text-cyan-600 dark:text-cyan-400 border border-zinc-300 dark:border-zinc-800 hover:border-cyan-500 transition-all"
+            >
+              🚀 NeuroGrid ASP
+            </button>
+            <button
+              onClick={() => {
+                onUpdateGithubUrl("https://github.com/echopitch/defi-yield-engine");
+                if (onFetchGithubRepo) onFetchGithubRepo("https://github.com/echopitch/defi-yield-engine");
+              }}
+              className="rounded-lg bg-zinc-100 dark:bg-zinc-900 px-2.5 py-1 font-mono text-[11px] text-amber-600 dark:text-amber-400 border border-zinc-300 dark:border-zinc-800 hover:border-amber-500 transition-all"
+            >
+              🔥 YieldPulse Engine
+            </button>
+          </div>
+        </div>
+
+        {/* Collapsible Input Drawer Body */}
+        {isSourceMarkdownOpen && (
+          <div className="mt-6 pt-5 border-t border-zinc-200 dark:border-zinc-800/80 flex flex-col gap-4 animate-in fade-in">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                Direct Source Markdown Editor
+              </span>
+            </div>
+
+            <textarea
+              value={readmeText}
+              onChange={(e) => onUpdateReadmeText(e.target.value)}
+              placeholder="Paste raw README markdown text here..."
+              className="h-36 w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-950 p-4 font-mono text-xs text-zinc-900 dark:text-zinc-200 placeholder-zinc-600 focus:border-emerald-500 focus:outline-none resize-none"
+            />
           </div>
         )}
 

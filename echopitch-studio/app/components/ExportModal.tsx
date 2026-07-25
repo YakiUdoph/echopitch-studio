@@ -43,10 +43,39 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     setTimeout(() => setCopiedPayload(false), 2000);
   };
 
-  const handleCopyScript = () => {
-    navigator.clipboard.writeText(scriptText);
-    setCopiedScript(true);
-    setTimeout(() => setCopiedScript(false), 2000);
+  const handleDownloadAspJson = () => {
+    const element = document.createElement("a");
+    const file = new Blob([JSON.stringify(aspPayload, null, 2)], { type: "application/json" });
+    element.href = URL.createObjectURL(file);
+    element.download = `${aspPayload.skill_id}_okx_asp_spec.json`;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  };
+
+  const handleDownloadScriptMd = () => {
+    const element = document.createElement("a");
+    const content = `# EchoPitch AI Studio - Pitch Script & Telemetry\n\n` +
+      `**Skill ID:** ${aspPayload.skill_id}\n` +
+      `**Total Duration:** 90 Seconds\n\n` +
+      `---\n\n` +
+      scriptText;
+    const file = new Blob([content], { type: "text/markdown" });
+    element.href = URL.createObjectURL(file);
+    element.download = `${aspPayload.skill_id}_script_telemetry.md`;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  };
+
+  const handleDownloadSlidesJson = () => {
+    const element = document.createElement("a");
+    const file = new Blob([JSON.stringify(slides, null, 2)], { type: "application/json" });
+    element.href = URL.createObjectURL(file);
+    element.download = `${aspPayload.skill_id}_slides_deck.json`;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
   };
 
   const handleSimulateVideoExport = () => {
@@ -58,7 +87,6 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           clearInterval(interval);
           setIsExportingVideo(false);
 
-          // Create dummy webm text file download
           const element = document.createElement("a");
           const file = new Blob([`EchoPitch Studio Video Export - ${aspPayload.name}\n\n` + scriptText], {
             type: "text/plain"
@@ -76,20 +104,6 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     }, 300);
   };
 
-  const handleExportSlidesPng = () => {
-    // Generate text blob for slides PNG manifest
-    const element = document.createElement("a");
-    const content = slides
-      .map((s) => `SLIDE ${s.number}: ${s.title}\nCategory: ${s.category}\n${s.content.join("\n")}`)
-      .join("\n\n---\n\n");
-    const file = new Blob([content], { type: "text/plain" });
-    element.href = URL.createObjectURL(file);
-    element.download = `${aspPayload.skill_id}_slides_deck.txt`;
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/80 backdrop-blur-md p-4 animate-in fade-in">
       <div className="relative w-full max-w-3xl rounded-2xl border border-zinc-800 bg-zinc-900 shadow-2xl p-6 overflow-hidden">
@@ -101,10 +115,10 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             </div>
             <div>
               <h3 className="text-base font-extrabold text-zinc-100 flex items-center gap-2">
-                OKX.AI Skill Package (ASP) & Export Center
+                OKX.AI Skill Package (ASP) & Tangible Export Center
               </h3>
               <p className="text-xs text-zinc-400">
-                Export pitch video, slide PNG bundle, or copy standardized marketplace JSON payload
+                Download pitch scripts (.md), slides deck (.json), or copy standardized OKX ASP payload
               </p>
             </div>
           </div>
@@ -118,7 +132,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 
         {/* Content Body */}
         <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Option 1: Copy OKX ASP Payload */}
+          {/* Option 1: Copy & Download OKX ASP Payload */}
           <div className="flex flex-col justify-between rounded-xl border border-zinc-800 bg-zinc-950/80 p-6 hover:border-zinc-700 transition-all">
             <div>
               <div className="flex items-center justify-between">
@@ -135,22 +149,22 @@ export const ExportModal: React.FC<ExportModalProps> = ({
               </span>
             </div>
 
-            <button
-              onClick={handleCopyPayload}
-              className="mt-4 flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-500 transition-all"
-            >
-              {copiedPayload ? (
-                <>
-                  <Check className="h-4 w-4 text-white" />
-                  <span>Copied OKX Payload!</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="h-4 w-4" />
-                  <span>Copy OKX ASP Payload</span>
-                </>
-              )}
-            </button>
+            <div className="mt-4 flex flex-col gap-2">
+              <button
+                onClick={handleDownloadAspJson}
+                className="flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-500 transition-all"
+              >
+                <Download className="h-3.5 w-3.5" />
+                <span>Download ASP Spec (.json)</span>
+              </button>
+              <button
+                onClick={handleCopyPayload}
+                className="flex items-center justify-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:bg-zinc-800 transition-all"
+              >
+                {copiedPayload ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                <span>{copiedPayload ? "Copied JSON!" : "Copy ASP JSON"}</span>
+              </button>
+            </div>
           </div>
 
           {/* Option 2: Render Demo Video */}
@@ -163,7 +177,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 </span>
               </div>
               <h4 className="mt-3 text-xs font-bold text-zinc-200">
-                Render 90s Pitch Video
+                Render Demo Video
               </h4>
               <span className="mt-1 text-[11px] text-zinc-400 leading-relaxed block">
                 Client-side video render using <Tooltip termKey="FFmpeg WASM">FFmpeg WASM</Tooltip> canvas stitching
@@ -190,7 +204,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
               className="mt-4 flex items-center justify-center gap-2 rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-2 text-xs font-semibold text-zinc-100 hover:bg-zinc-700 disabled:opacity-50 transition-all"
             >
               <Download className="h-4 w-4 text-emerald-400" />
-              <span>{isExportingVideo ? "Stitching Video..." : "Download 90s Video"}</span>
+              <span>{isExportingVideo ? "Stitching Video..." : "Download Pitch Video"}</span>
             </button>
           </div>
 
@@ -200,31 +214,31 @@ export const ExportModal: React.FC<ExportModalProps> = ({
               <div className="flex items-center justify-between">
                 <Layers className="h-5 w-5 text-purple-400" />
                 <span className="rounded bg-zinc-900 px-2 py-0.5 text-[10px] font-mono text-purple-400 border border-zinc-800">
-                  PNG & Script
+                  JSON & MD
                 </span>
               </div>
               <h4 className="mt-3 text-xs font-bold text-zinc-200">
                 Export Deck Assets & Script
               </h4>
               <span className="mt-1 text-[11px] text-zinc-400 leading-relaxed block">
-                Download 4 high-res slide deck images or copy raw 90-second pitch text
+                Download structured slides (.json) or pitch script telemetry (.md)
               </span>
             </div>
 
             <div className="mt-4 flex flex-col gap-2">
               <button
-                onClick={handleExportSlidesPng}
+                onClick={handleDownloadSlidesJson}
                 className="flex items-center justify-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-xs font-semibold text-zinc-200 hover:bg-zinc-700 transition-all"
               >
-                <Download className="h-3.5 w-3.5" />
-                <span>Download Slide PNGs</span>
+                <Download className="h-3.5 w-3.5 text-purple-400" />
+                <span>Download Slides (.json)</span>
               </button>
               <button
-                onClick={handleCopyScript}
+                onClick={handleDownloadScriptMd}
                 className="flex items-center justify-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:bg-zinc-800 transition-all"
               >
-                {copiedScript ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <FileText className="h-3.5 w-3.5" />}
-                <span>{copiedScript ? "Copied Script!" : "Copy Pitch Script Text"}</span>
+                <FileText className="h-3.5 w-3.5 text-emerald-400" />
+                <span>Download Script (.md)</span>
               </button>
             </div>
           </div>

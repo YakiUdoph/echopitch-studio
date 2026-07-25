@@ -11,8 +11,7 @@ import {
   Cpu,
   Share2,
   Sun,
-  Moon,
-  ExternalLink
+  Moon
 } from "lucide-react";
 
 export type TabType = "studio" | "script" | "asp";
@@ -49,7 +48,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-zinc-200 dark:border-zinc-800/80 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-2xl transition-colors duration-300">
-      {/* Simulation Bar Banner with Renamed Label */}
+      {/* Quick Demo Presets Banner */}
       <div className="w-full bg-gradient-to-r from-zinc-100 via-zinc-50 to-zinc-100 dark:from-zinc-950 dark:via-zinc-900/60 dark:to-zinc-950 border-b border-zinc-200 dark:border-zinc-800/80 px-4 py-2">
         <div className="mx-auto flex flex-wrap items-center justify-between gap-3 max-w-7xl">
           <div className="flex items-center gap-2 text-xs">
@@ -94,81 +93,41 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Main Header Navigation Bar */}
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        {/* Brand & Menu Links */}
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-3">
-            <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-600 via-teal-600 to-indigo-600 shadow-lg shadow-emerald-500/20 ring-1 ring-white/20">
-              {/* SVG Glowing Waveform Sparkle Logo */}
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-5 w-5 text-white drop-shadow-[0_0_8px_rgba(16,185,129,0.8)] animate-pulse"
-              >
-                <path d="M2 12h3l2-7 4 14 3-9 2 4h4" />
-                <path d="M19 5l1.5 1.5L22 5l-1.5-1.5z" fill="currentColor" stroke="none" />
-              </svg>
-            </div>
-
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-600 dark:from-white dark:via-zinc-100 dark:to-zinc-300 bg-clip-text text-lg font-black tracking-tight text-transparent">
-                  EchoPitch Studio
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-md bg-zinc-100 dark:bg-zinc-900 px-2 py-0.5 text-[10px] font-mono text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-800 uppercase">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse"></span>
-                  OKX.AI ASP
-                </span>
-              </div>
-              <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 block">
-                Web3 AI Agent Pitch Generator & <Tooltip termKey="ASP Payload">ASP Skill Engine</Tooltip>
-              </span>
-            </div>
+        {/* Far Left: Brand & Glowing Logo */}
+        <div className="flex items-center gap-3">
+          <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-600 via-teal-600 to-indigo-600 shadow-lg shadow-emerald-500/20 ring-1 ring-white/20">
+            {/* SVG Glowing Waveform Sparkle Logo */}
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-5 w-5 text-white drop-shadow-[0_0_8px_rgba(16,185,129,0.8)] animate-pulse"
+            >
+              <path d="M2 12h3l2-7 4 14 3-9 2 4h4" />
+              <path d="M19 5l1.5 1.5L22 5l-1.5-1.5z" fill="currentColor" stroke="none" />
+            </svg>
           </div>
 
-          {/* Clean Subtle Top Navigation Menu Links */}
-          <div className="hidden lg:flex items-center gap-4 pl-4 border-l border-zinc-200 dark:border-zinc-800">
-            <a
-              href="#docs"
-              onClick={(e) => {
-                e.preventDefault();
-                setActiveTab("asp");
-              }}
-              className="text-xs font-medium text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors duration-200"
-            >
-              Docs
-            </a>
-            <a
-              href="https://github.com/echopitch/echopitch-studio"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 text-xs font-medium text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors duration-200"
-            >
-              <span>GitHub</span>
-              <ExternalLink className="h-3 w-3 opacity-60" />
-            </a>
-            <a
-              href="https://web3.okx.com/onchainos"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 text-xs font-medium text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors duration-200"
-            >
-              <span>OKX OS</span>
-              <ExternalLink className="h-3 w-3 opacity-60" />
-            </a>
-            <button
-              onClick={() => setActiveTab("asp")}
-              className="text-xs font-medium text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors duration-200"
-            >
-              ASP Spec
-            </button>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-600 dark:from-white dark:via-zinc-100 dark:to-zinc-300 bg-clip-text text-lg font-black tracking-tight text-transparent">
+                EchoPitch Studio
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-md bg-zinc-100 dark:bg-zinc-900 px-2 py-0.5 text-[10px] font-mono text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-800 uppercase">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse"></span>
+                OKX.AI ASP
+              </span>
+            </div>
+            <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 block">
+              Web3 AI Agent Pitch Generator & <Tooltip termKey="ASP Payload">ASP Skill Engine</Tooltip>
+            </span>
           </div>
         </div>
 
-        {/* Essential Navigation Tabs */}
+        {/* Center: Essential Navigation Tabs */}
         <nav className="hidden md:flex items-center rounded-xl bg-zinc-100/90 dark:bg-zinc-900/90 p-1 border border-zinc-200 dark:border-zinc-800">
           <button
             onClick={() => setActiveTab("studio")}
@@ -208,7 +167,7 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         </nav>
 
-        {/* Mode Toggle, Theme Toggle & Export Button */}
+        {/* Far Right: Mode Toggle, Theme Toggle & Export Button */}
         <div className="flex items-center gap-2.5">
           {/* Light / Dark Mode Toggle Button */}
           {mounted && (

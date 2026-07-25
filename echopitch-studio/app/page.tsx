@@ -340,13 +340,16 @@ export default function Home() {
       />
 
       {/* Minimalist Footer */}
-      <footer className="relative z-10 w-full border-t border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-zinc-950 py-8 mt-12 transition-colors duration-300">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-zinc-500 font-mono">
-          <p>© 2026 EchoPitch Studio • Powered by OKX OnchainOS & Next.js 15</p>
+      <footer className="relative z-10 w-full border-t border-zinc-200 dark:border-zinc-800/50 bg-white dark:bg-zinc-950 py-8 mt-12 transition-colors duration-300">
+        <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-zinc-500">
+          <p>© 2026 EchoPitch Studio • Powered by OKX OnchainOS</p>
           <div className="flex items-center gap-4">
-            <span className="hover:text-zinc-900 dark:hover:text-zinc-300 transition-colors">X Layer Mainnet</span>
-            <span>•</span>
-            <span className="hover:text-zinc-900 dark:hover:text-zinc-300 transition-colors">OKX ASP v1.2</span>
+            <button
+              onClick={() => setActiveTab("asp")}
+              className="hover:text-zinc-900 dark:hover:text-zinc-300 transition-colors font-medium cursor-pointer"
+            >
+              Docs
+            </button>
           </div>
         </div>
       </footer>

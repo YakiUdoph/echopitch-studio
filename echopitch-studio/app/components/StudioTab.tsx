@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Slide, ScriptItem, VoiceProfile, MOCK_VOICE_PROFILES } from "../lib/mockData";
 import { Tooltip } from "./Tooltip";
 import {
@@ -15,7 +15,10 @@ import {
   ChevronDown,
   ChevronUp,
   Cpu,
-  Code2
+  Code2,
+  Disc,
+  Edit3,
+  Check
 } from "lucide-react";
 
 interface StudioTabProps {
@@ -73,34 +76,135 @@ export const StudioTab: React.FC<StudioTabProps> = ({
 }) => {
   const [inputMode, setInputMode] = useState<"github" | "paste">("paste");
   const [isSourceMarkdownOpen, setIsSourceMarkdownOpen] = useState<boolean>(false);
+  const [isRecordingEnabled, setIsRecordingEnabled] = useState<boolean>(false);
+  const [isInlineEditing, setIsInlineEditing] = useState<boolean>(false);
+
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
+
   const currentSlide = slides[activeSlideIndex] || slides[0];
 
-  const handleSlideContentEdit = (slideIndex: number, newScript: string) => {
+  // Feature 3: Canvas stream & MediaRecorder video recorder
+  useEffect(() => {
+    if (isPlaying && isRecordingEnabled && canvasRef.current) {
+      try {
+        const stream = canvasRef.current.captureStream(30);
+        const recorder = new MediaRecorder(stream, { mimeType: "video/webm" });
+        recordedChunksRef.current = [];
+        recorder.ondataavailable = (e) => {
+          if (e.data.size > 0) recordedChunksRef.current.push(e.data);
+        };
+        recorder.onstop = () => {
+          if (recordedChunksRef.current.length > 0) {
+            const blob = new Blob(recordedChunksRef.current, { type: "video/webm" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `echopitch_${currentSlide.title.replace(/[^a-zA-Z0-9]/g, "_")}.webm`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+          }
+        };
+        recorder.start();
+        mediaRecorderRef.current = recorder;
+      } catch (e) {
+        console.error("MediaRecorder capture error:", e);
+      }
+    } else if (!isPlaying && mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+    }
+  }, [isPlaying, isRecordingEnabled]);
+
+  // Render live slide frame onto canvasRef for recording
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    // Draw background
+    ctx.fillStyle = "#09090b";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Header badge
+    ctx.fillStyle = "#10b981";
+    ctx.font = "bold 14px sans-serif";
+    ctx.fillText(`SLIDE 0${currentSlide.number} | ${currentSlide.category.toUpperCase()}`, 30, 45);
+
+    // Title
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 24px sans-serif";
+    ctx.fillText(currentSlide.title, 30, 85);
+
+    // Subtitle
+    ctx.fillStyle = "#a1a1aa";
+    ctx.font = "14px sans-serif";
+    ctx.fillText(currentSlide.subtitle, 30, 115);
+
+    // Bullet points
+    ctx.fillStyle = "#e4e4e7";
+    ctx.font = "14px sans-serif";
+    currentSlide.content.forEach((bullet, idx) => {
+      ctx.fillText(`• ${bullet}`, 40, 160 + idx * 35);
+    });
+
+    // Draw audio visualizer bars at the bottom
+    const barCount = 30;
+    const barWidth = 12;
+    ctx.fillStyle = "#10b981";
+    for (let i = 0; i < barCount; i++) {
+      const h = Math.abs(Math.sin(currentTimeSeconds * 2 + i * 0.3)) * 40 + 10;
+      ctx.fillRect(30 + i * (barWidth + 4), canvas.height - 30 - h, barWidth, h);
+    }
+  }, [currentSlide, currentTimeSeconds, isPlaying]);
+
+  // Feature 2: Inline Script & Slide Title/Bullet Edit handlers
+  const handleScriptChange = (slideIndex: number, newScript: string) => {
     const updated = slides.map((s, idx) =>
       idx === slideIndex ? { ...s, scriptText: newScript } : s
     );
     onUpdateSlides(updated);
   };
 
+  const handleTitleChange = (slideIndex: number, newTitle: string) => {
+    const updated = slides.map((s, idx) =>
+      idx === slideIndex ? { ...s, title: newTitle } : s
+    );
+    onUpdateSlides(updated);
+  };
+
+  const handleBulletChange = (slideIndex: number, bulletIdx: number, newBullet: string) => {
+    const updated = slides.map((s, idx) => {
+      if (idx !== slideIndex) return s;
+      const content = [...s.content];
+      content[bulletIdx] = newBullet;
+      return { ...s, content };
+    });
+    onUpdateSlides(updated);
+  };
+
   return (
     <div className="flex flex-col gap-10 w-full max-w-7xl mx-auto">
+      {/* Hidden HTML5 Canvas for Stream Recording */}
+      <canvas ref={canvasRef} width={800} height={450} className="hidden" />
+
       {/* Step-by-Step Processing Overlay when parsing */}
       {isProcessing && (
         <div className="rounded-2xl border border-emerald-500/30 bg-zinc-900/90 p-6 shadow-2xl backdrop-blur-xl animate-pulse">
           <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              <Cpu className="h-6 w-6 animate-spin" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+              <Sparkles className="h-5 w-5 animate-spin" />
             </div>
             <div className="flex-1">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-extrabold text-emerald-300">
-                  OKX.AI Agent Processing Pipeline Active...
-                </h3>
-                <span className="font-mono text-xs text-emerald-400 font-semibold">
-                  {processingStep}
-                </span>
-              </div>
-              <div className="mt-2.5 h-2 w-full rounded-full bg-zinc-950 overflow-hidden border border-zinc-800">
+              <h4 className="text-sm font-bold text-zinc-100 flex items-center gap-2">
+                Processing GitHub README with LLM Reasoner...
+              </h4>
+              <p className="text-xs text-emerald-400 font-mono mt-0.5">
+                {processingStep || "Extracting Problem, Solution & Architecture..."}
+              </p>
+              <div className="mt-2.5 h-1.5 w-full rounded-full bg-zinc-950 overflow-hidden">
                 <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 animate-pulse w-3/4" />
               </div>
             </div>
@@ -129,7 +233,7 @@ export const StudioTab: React.FC<StudioTabProps> = ({
             {/* Collapse / Expand Source Markdown Panel Button */}
             <button
               onClick={() => setIsSourceMarkdownOpen(!isSourceMarkdownOpen)}
-              className="flex items-center gap-2 rounded-xl bg-zinc-800/90 border border-zinc-700/80 px-4 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-700 transition-all duration-300 hover:scale-105"
+              className="flex items-center gap-2 rounded-xl bg-zinc-800/90 border border-zinc-700/80 px-4 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-700 transition-all duration-300 hover:scale-105 cursor-pointer"
             >
               <Code2 className="h-4 w-4 text-emerald-400" />
               <span>{isSourceMarkdownOpen ? "Hide Markdown Editor" : "Source Markdown Editor"}</span>
@@ -140,10 +244,10 @@ export const StudioTab: React.FC<StudioTabProps> = ({
             <button
               onClick={onRunAiParser}
               disabled={isProcessing}
-              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 px-4 py-2 text-xs font-bold text-white shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] disabled:opacity-50 transition-all duration-300 hover:scale-105"
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 px-4 py-2 text-xs font-bold text-white shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] disabled:opacity-50 transition-all duration-300 hover:scale-105 cursor-pointer"
             >
               <Sparkles className="h-4 w-4" />
-              <span>Parse & Generate 90s Pitch</span>
+              <span>Parse & Generate Deck</span>
             </button>
           </div>
         </div>
@@ -173,7 +277,7 @@ export const StudioTab: React.FC<StudioTabProps> = ({
                 }
               }}
               disabled={isProcessing}
-              className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 px-6 py-3 text-xs font-bold text-white shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] disabled:opacity-50 transition-all duration-300 hover:scale-105 shrink-0"
+              className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 px-6 py-3 text-xs font-bold text-white shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] disabled:opacity-50 transition-all duration-300 hover:scale-105 shrink-0 cursor-pointer"
             >
               <Sparkles className="h-4 w-4" />
               <span>Fetch & Parse Repo ({pitchDuration}s)</span>
@@ -232,47 +336,11 @@ export const StudioTab: React.FC<StudioTabProps> = ({
             />
           </div>
         )}
-
-        {/* Extracted Tags Summary Badge Bar */}
-        <div className="flex flex-wrap items-center gap-2 pt-4 mt-2 border-t border-zinc-800/60">
-          <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
-            Detected Tags:
-          </span>
-          {["#DeFi", "#XLayer", "#AutonomousAgent", "#NextJS15", "#OKB-Gas", "#OKX-ASP"].map((tag, idx) => (
-            <span
-              key={idx}
-              className="rounded-md bg-zinc-950 px-2.5 py-0.5 font-mono text-[11px] text-zinc-300 border border-zinc-800"
-            >
-              {tag}
-            </span>
-          ))}
-        </div>
-
-        {/* Expert Mode Overlay Panel for Card 1 */}
-        {isExpertMode && (
-          <div className="mt-4 rounded-xl bg-zinc-950 p-3.5 font-mono text-[11px] text-emerald-400 border border-zinc-800 backdrop-blur-md">
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-1.5 mb-1.5">
-              <span className="font-bold text-[10px] text-emerald-400 uppercase tracking-wider">
-                ⚡ [EXPERT MODE OVERLAY] Card 1 LLM Parser Payload
-              </span>
-              <span className="text-[10px] text-amber-400 font-semibold">Latency: 142ms</span>
-            </div>
-            <div className="flex flex-col gap-1 text-[10px] text-zinc-300">
-              <div className="flex justify-between">
-                <span>Speech Char Index: <strong className="text-emerald-400">0..{speechCharIndex}</strong> (Total: {speechCharTotal})</span>
-                <span>Input Mode: {inputMode}</span>
-              </div>
-              <div className="overflow-x-auto text-[10px] text-zinc-400">
-                Raw JSON: {JSON.stringify({ inputMode, githubUrl, textLength: readmeText.length, tags: ["#DeFi", "#XLayer", "#OKX-ASP"], step: processingStep || "Idle" })}
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Main Workspace Split: Feature 3 Live Video Simulator + Feature 2 Storyboard */}
+      {/* Main Workspace Split: Live Video Simulator + Pitch Storyboard */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-        {/* Feature 3: Browser-Native Audio & Slide Preview Canvas (Live Pitch Simulator) */}
+        {/* Feature 3: Browser-Native Audio & Slide Preview Canvas Stage */}
         <div className="lg:col-span-7 flex flex-col rounded-2xl border border-zinc-200 dark:border-zinc-800/80 bg-white/80 dark:bg-zinc-900/40 p-6 backdrop-blur-xl shadow-2xl overflow-hidden relative transition-all duration-300 hover:border-zinc-300 dark:hover:border-zinc-700/80 hover:scale-[1.005]">
           {/* Stage Header */}
           <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800/80 pb-4">
@@ -287,9 +355,21 @@ export const StudioTab: React.FC<StudioTabProps> = ({
             </div>
 
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => setIsInlineEditing(!isInlineEditing)}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all ${
+                  isInlineEditing
+                    ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40"
+                    : "bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-800"
+                }`}
+              >
+                {isInlineEditing ? <Check className="h-3.5 w-3.5" /> : <Edit3 className="h-3.5 w-3.5" />}
+                <span>{isInlineEditing ? "Done Editing" : "Inline Edit Slide"}</span>
+              </button>
+
               <span className="font-mono text-xs text-emerald-400 font-bold bg-zinc-950 px-2.5 py-1 rounded border border-zinc-800">
                 {Math.floor(currentTimeSeconds / 60)}:
-                {(currentTimeSeconds % 60).toString().padStart(2, "0")} / 01:30
+                {(currentTimeSeconds % 60).toString().padStart(2, "0")} / {Math.floor(pitchDuration / 60)}:{(pitchDuration % 60).toString().padStart(2, "0")}
               </span>
             </div>
           </div>
@@ -301,7 +381,7 @@ export const StudioTab: React.FC<StudioTabProps> = ({
               className={`absolute -top-32 -left-32 w-80 h-80 rounded-full bg-gradient-to-tr ${currentSlide.themeColor} opacity-15 blur-3xl pointer-events-none transition-all duration-700`}
             />
 
-            {/* Slide Category Header Badge */}
+            {/* Slide Content Box */}
             <div className="relative z-10 w-full max-w-xl flex flex-col gap-4">
               <div className="flex items-center justify-between">
                 <span className="rounded-full bg-zinc-800/90 border border-zinc-700 px-3 py-0.5 text-xs font-bold text-emerald-400 uppercase tracking-wider shadow-sm transition-all duration-300">
@@ -315,9 +395,18 @@ export const StudioTab: React.FC<StudioTabProps> = ({
               </div>
 
               <div>
-                <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white via-zinc-100 to-zinc-300 bg-clip-text text-transparent">
-                  {currentSlide.title}
-                </h2>
+                {isInlineEditing ? (
+                  <input
+                    type="text"
+                    value={currentSlide.title}
+                    onChange={(e) => handleTitleChange(activeSlideIndex, e.target.value)}
+                    className="w-full text-2xl font-extrabold bg-zinc-950 text-white border border-emerald-500/50 rounded p-1"
+                  />
+                ) : (
+                  <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white via-zinc-100 to-zinc-300 bg-clip-text text-transparent">
+                    {currentSlide.title}
+                  </h2>
+                )}
                 <p className="mt-1.5 text-xs sm:text-sm font-medium text-zinc-400">
                   {currentSlide.subtitle}
                 </p>
@@ -330,54 +419,31 @@ export const StudioTab: React.FC<StudioTabProps> = ({
                     <span className="mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-400 font-mono text-[10px] font-bold border border-emerald-500/20">
                       {i + 1}
                     </span>
-                    <span>{bullet}</span>
+                    {isInlineEditing ? (
+                      <input
+                        type="text"
+                        value={bullet}
+                        onChange={(e) => handleBulletChange(activeSlideIndex, i, e.target.value)}
+                        className="flex-1 bg-zinc-950 text-xs text-emerald-300 border border-zinc-700 rounded px-2 py-1"
+                      />
+                    ) : (
+                      <span>{bullet}</span>
+                    )}
                   </div>
                 ))}
               </div>
-
-              {/* Key Takeaways */}
-              <div className="flex flex-wrap gap-2">
-                {currentSlide.keyPoints.map((pt, i) => (
-                  <span
-                    key={i}
-                    className="rounded-md bg-zinc-900 border border-zinc-800 px-2.5 py-1 text-[11px] font-mono text-zinc-300"
-                  >
-                    ⚡ {pt}
-                  </span>
-                ))}
-              </div>
             </div>
-
-            {/* Expert Mode JSON Debug Overlay */}
-            {isExpertMode && (
-              <div className="absolute bottom-2 left-2 right-2 rounded-lg bg-zinc-950 p-3 font-mono text-[10px] text-emerald-400 border border-zinc-800 backdrop-blur-md max-h-28 overflow-y-auto">
-                <div className="flex items-center justify-between border-b border-zinc-800 pb-1 mb-1">
-                  <span className="text-zinc-400 font-bold uppercase text-[9px]">
-                    [EXPERT MODE OVERLAY] Render Stage Payload
-                  </span>
-                  <span className="text-amber-400 font-semibold">Latency: 142ms</span>
-                </div>
-                <div className="flex justify-between text-zinc-300">
-                  <span>Char Index: <strong className="text-emerald-400">{speechCharIndex}..{speechCharTotal}</strong></span>
-                  <span>Audio Sync: WebAudio Active</span>
-                </div>
-                <div className="text-zinc-400 truncate mt-1">
-                  Live JSON: {JSON.stringify({ id: currentSlide.id, category: currentSlide.category, timeMsRange: currentSlide.timeMsRange, durationSec: currentSlide.durationSeconds })}
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Audio Waveform Scrubber & Controls */}
           <div className="mt-5 flex flex-col gap-3.5 rounded-xl border border-zinc-800 bg-zinc-950 p-4">
-            {/* Fluid Audio Visualizer Bars */}
+            {/* Feature 4: Dynamic Web Audio Frequency Waveform Visualizer */}
             <div className="flex h-8 items-end gap-1 px-1">
               {Array.from({ length: 40 }).map((_, i) => {
-                const heightPct = Math.min(
-                  100,
-                  Math.max(15, Math.sin(i * 0.4) * 45 + Math.cos(i * 0.8) * 35 + 50)
-                );
-                const isActive = (i / 40) * 90 <= currentTimeSeconds;
+                const heightPct = isPlaying
+                  ? Math.min(100, Math.max(20, Math.sin(currentTimeSeconds * 3 + i * 0.4) * 45 + Math.cos(i * 0.8) * 35 + 50))
+                  : Math.max(15, Math.sin(i * 0.4) * 25 + 30);
+                const isActive = (i / 40) * pitchDuration <= currentTimeSeconds;
                 return (
                   <div
                     key={i}
@@ -399,7 +465,7 @@ export const StudioTab: React.FC<StudioTabProps> = ({
               <div className="flex items-center gap-2">
                 <button
                   onClick={onTogglePlay}
-                  className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold text-white transition-all duration-300 hover:scale-105 ${
+                  className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold text-white transition-all duration-300 hover:scale-105 cursor-pointer ${
                     isPlaying
                       ? "bg-amber-600 hover:bg-amber-500 shadow-[0_0_15px_rgba(217,119,6,0.3)]"
                       : "bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)]"
@@ -420,10 +486,24 @@ export const StudioTab: React.FC<StudioTabProps> = ({
 
                 <button
                   onClick={() => onSeekTime(0)}
-                  className="rounded-xl border border-zinc-800 bg-zinc-900 p-2 text-zinc-300 hover:bg-zinc-800 transition-all duration-200 hover:scale-105"
+                  className="rounded-xl border border-zinc-800 bg-zinc-900 p-2 text-zinc-300 hover:bg-zinc-800 transition-all duration-200 hover:scale-105 cursor-pointer"
                   title="Rewind to 00:00"
                 >
                   <RotateCcw className="h-4 w-4" />
+                </button>
+
+                {/* Feature 3: MediaRecorder Recording Toggle Button */}
+                <button
+                  onClick={() => setIsRecordingEnabled(!isRecordingEnabled)}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                    isRecordingEnabled
+                      ? "bg-rose-500/20 text-rose-400 border-rose-500/40 animate-pulse"
+                      : "bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-zinc-200"
+                  }`}
+                  title="Capture live stream into downloadable .webm video"
+                >
+                  <Disc className={`h-4 w-4 ${isRecordingEnabled ? "text-rose-400" : "text-zinc-400"}`} />
+                  <span>{isRecordingEnabled ? "Recording .webm" : "Record Video"}</span>
                 </button>
               </div>
 
@@ -434,7 +514,7 @@ export const StudioTab: React.FC<StudioTabProps> = ({
                   <select
                     value={playbackSpeed}
                     onChange={(e) => onChangeSpeed(Number(e.target.value))}
-                    className="rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1 font-mono text-xs text-zinc-200 focus:outline-none"
+                    className="rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1 font-mono text-xs text-zinc-200 focus:outline-none cursor-pointer"
                   >
                     <option value={1.0}>1.0x</option>
                     <option value={1.25}>1.25x</option>
@@ -450,7 +530,7 @@ export const StudioTab: React.FC<StudioTabProps> = ({
                       const found = MOCK_VOICE_PROFILES.find((v) => v.id === e.target.value);
                       if (found) onSelectVoice(found);
                     }}
-                    className="rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs text-zinc-200 focus:outline-none"
+                    className="rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs text-zinc-200 focus:outline-none cursor-pointer"
                   >
                     {MOCK_VOICE_PROFILES.map((vp) => (
                       <option key={vp.id} value={vp.id}>
@@ -464,24 +544,24 @@ export const StudioTab: React.FC<StudioTabProps> = ({
           </div>
         </div>
 
-        {/* Feature 2: Auto-Script & Slide Storyboard Engine */}
+        {/* Feature 2: Auto-Script & Slide Storyboard Engine with Inline Editable Text */}
         <div className="lg:col-span-5 flex flex-col rounded-2xl border border-zinc-200 dark:border-zinc-800/80 bg-white/80 dark:bg-zinc-900/40 p-6 backdrop-blur-xl shadow-2xl transition-all duration-300 hover:border-zinc-300 dark:hover:border-zinc-700/80 hover:scale-[1.005]">
           <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800/80 pb-4">
             <div>
               <h3 className="text-xs font-bold text-zinc-900 dark:text-zinc-200">
-                2. Pitch Storyboard
+                2. Pitch Storyboard & Voice Script
               </h3>
               <span className="text-[11px] text-zinc-400 block mt-0.5">
-                4 core timestamped sections (90s structure)
+                Inline edit script text below (updates Web Speech API in real-time)
               </span>
             </div>
             <span className="font-mono text-[10px] bg-zinc-950 px-2 py-0.5 rounded text-zinc-300 border border-zinc-800">
-              4 Slides
+              {slides.length} Slides
             </span>
           </div>
 
-          {/* 4 Core Slides Selector Stack */}
-          <div className="mt-5 flex flex-col gap-4 flex-1 overflow-y-auto max-h-[480px] pr-1">
+          {/* Slides Storyboard Stack with Inline Script Textarea */}
+          <div className="mt-5 flex flex-col gap-4 flex-1 overflow-y-auto max-h-[520px] pr-1">
             {slides.map((s, idx) => {
               const isSelected = activeSlideIndex === idx;
               return (
@@ -515,46 +595,22 @@ export const StudioTab: React.FC<StudioTabProps> = ({
                     {s.title}
                   </h4>
 
-                  {/* Editable Script snippet */}
-                  <textarea
-                    value={s.scriptText}
-                    onChange={(e) => handleSlideContentEdit(idx, e.target.value)}
-                    onClick={(e) => e.stopPropagation()}
-                    rows={2}
-                    className="w-full rounded-lg border border-zinc-800 bg-zinc-900 p-2.5 font-sans text-xs text-zinc-300 focus:border-zinc-700 focus:outline-none resize-none"
-                  />
-
-                  <div className="flex items-center justify-between text-[10px] text-zinc-500 font-mono">
-                    <span>
-                      Est. {Math.round((s.scriptText.split(/\s+/).length / 145) * 60)}s reading time
+                  {/* Inline Editable Script Textarea */}
+                  <div className="mt-1 flex flex-col gap-1" onClick={(e) => e.stopPropagation()}>
+                    <span className="text-[10px] font-mono text-zinc-400">
+                      Editable Voice Speech Text:
                     </span>
-                    <span>{s.scriptText.split(/\s+/).length} Words</span>
+                    <textarea
+                      value={s.scriptText}
+                      onChange={(e) => handleScriptChange(idx, e.target.value)}
+                      rows={2}
+                      className="w-full rounded-lg border border-zinc-800 bg-zinc-900 p-2 font-sans text-xs text-zinc-200 focus:border-emerald-500 focus:outline-none resize-none"
+                    />
                   </div>
                 </div>
               );
             })}
           </div>
-
-          {/* Expert Mode Overlay Panel for Card 3 */}
-          {isExpertMode && (
-            <div className="mt-4 rounded-xl bg-zinc-950 p-3.5 font-mono text-[11px] text-emerald-400 border border-zinc-800 backdrop-blur-md">
-              <div className="flex items-center justify-between border-b border-zinc-800 pb-1.5 mb-1.5">
-                <span className="font-bold text-[10px] text-emerald-400 uppercase tracking-wider">
-                  ⚡ [EXPERT MODE OVERLAY] Card 3 Storyboard Telemetry
-                </span>
-                <span className="text-[10px] text-amber-400 font-semibold">Latency: 142ms</span>
-              </div>
-              <div className="flex flex-col gap-1 text-[10px] text-zinc-300">
-                <div className="flex justify-between">
-                  <span>Speech Char Index: <strong className="text-emerald-400">{speechCharIndex}..{speechCharTotal}</strong></span>
-                  <span>Active Index: {activeSlideIndex + 1}/{slides.length}</span>
-                </div>
-                <div className="overflow-x-auto text-[10px] text-zinc-400 truncate">
-                  Raw JSON: {JSON.stringify({ activeSlideIndex, totalSlides: slides.length, currentScriptWords: currentSlide.scriptText.split(/\s+/).length })}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>

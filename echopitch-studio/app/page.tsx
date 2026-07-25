@@ -59,12 +59,29 @@ export default function Home() {
   const [speechCharTotal, setSpeechCharTotal] = useState<number>(140);
   const synthRef = useRef<SpeechSynthesis | null>(null);
 
-  // Initialize SpeechSynthesis reference
+  // Initialize SpeechSynthesis reference & parse URL ?repo= parameter
   useEffect(() => {
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      synthRef.current = window.speechSynthesis;
+    if (typeof window !== "undefined") {
+      if ("speechSynthesis" in window) {
+        synthRef.current = window.speechSynthesis;
+      }
+      const params = new URLSearchParams(window.location.search);
+      const repoParam = params.get("repo");
+      if (repoParam) {
+        const fullUrl = repoParam.startsWith("http")
+          ? repoParam
+          : `https://github.com/${repoParam}`;
+        setGithubUrl(fullUrl);
+        handleFetchGithubRepo(fullUrl);
+      }
     }
   }, []);
+
+  // Feature 2: Handle inline slide & script edits
+  const handleUpdateSlides = (newSlides: Slide[]) => {
+    setSlides(newSlides);
+    setScriptItems(generateDynamicScriptItems(newSlides));
+  };
 
   // Web Speech API (window.speechSynthesis) voice preview playback & audio sync
   useEffect(() => {
@@ -309,7 +326,7 @@ export default function Home() {
             >
               <StudioTab
                 slides={slides}
-                onUpdateSlides={setSlides}
+                onUpdateSlides={handleUpdateSlides}
                 activeSlideIndex={activeSlideIndex}
                 setActiveSlideIndex={setActiveSlideIndex}
                 isPlaying={isPlaying}

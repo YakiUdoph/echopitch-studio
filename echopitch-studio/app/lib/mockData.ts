@@ -49,10 +49,14 @@ export interface JargonTooltip {
 
 export interface OkxAspPayload {
   skill_id: string;
+  agent_id: string;
+  a2a_service_id: string;
+  contract_address: string;
+  chain_id: number;
   name: string;
   version: string;
   author: string;
-  network: string; // "X Layer Testnet / Mainnet"
+  network: string; // "OKX X Layer Mainnet"
   category: string;
   subCategory: string;
   awardCategories: string[];
@@ -574,10 +578,14 @@ export const MOCK_VOICE_PROFILES: VoiceProfile[] = [
 
 export const MOCK_OKX_ASP_PAYLOAD_DEFI: OkxAspPayload = {
   skill_id: "asp_okx_xlayer_yield_v1",
-  name: "EchoPitch X-Vault AI Skill Package",
+  agent_id: "9230",
+  a2a_service_id: "36961",
+  contract_address: "0x779ded0c9e1022225f8e0630b35a9b54be713736",
+  chain_id: 196,
+  name: "EchoPitch Studio",
   version: "1.2.0-hackathon",
   author: "EchoPitch Studio / OKX Hackathon Team",
-  network: "OKX X Layer Mainnet / Testnet",
+  network: "OKX X Layer Mainnet (Chain ID 196)",
   category: "Software Services",
   subCategory: "AI Video & Script Automation",
   awardCategories: ["Creative Genius", "Best Product", "Software Utility"],

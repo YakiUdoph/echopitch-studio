@@ -1,0 +1,99 @@
+{
+  "skill_id": "asp_okx_xlayer_yield_v1",
+  "agent_id": "9230",
+  "a2a_service_id": "36961",
+  "contract_address": "0x779ded0c9e1022225f8e0630b35a9b54be713736",
+  "chain_id": 196,
+  "name": "EchoPitch Studio",
+  "version": "1.2.0-hackathon",
+  "author": "EchoPitch Studio / OKX Hackathon Team",
+  "network": "OKX X Layer Mainnet (Chain ID 196)",
+  "category": "Software Services",
+  "subCategory": "AI Video & Script Automation",
+  "awardCategories": [
+    "Creative Genius",
+    "Best Product",
+    "Software Utility"
+  ],
+  "maxDemoDuration": "90s",
+  "compatibleChains": [
+    "X Layer Mainnet (196)",
+    "X Layer Testnet (195)"
+  ],
+  "description": "Autonomous Agentic Skill Package for automated DEX yield optimization, timestamped pitch synthesis, and OKB gas micro-settlement.",
+  "endpoint": "https://api.echopitch.ai/v1/asp/execute",
+  "monetization": {
+    "price_per_call_okb": 0.0005,
+    "revenue_split_pct": 95.0
+  },
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "github_url": {
+        "type": "string",
+        "example": "https://github.com/echopitch/x-vault-ai"
+      },
+      "readme_text": {
+        "type": "string",
+        "description": "Raw Markdown content of project README"
+      },
+      "duration_seconds": {
+        "type": "integer",
+        "default": 90
+      },
+      "target_audience": {
+        "type": "string",
+        "enum": [
+          "Investors",
+          "Judges",
+          "Users",
+          "Developers"
+        ]
+      }
+    },
+    "required": [
+      "readme_text"
+    ]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "pitch_title": {
+        "type": "string"
+      },
+      "slides": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "script_text": {
+        "type": "string"
+      },
+      "audio_waveform_pcm": {
+        "type": "array"
+      },
+      "asp_execution_time_ms": {
+        "type": "number"
+      }
+    }
+  },
+  "sample_request": {
+    "github_url": "https://github.com/echopitch/x-vault-ai",
+    "readme_text": "# X-Vault AI: Autonomous Liquidity Agent on X Layer...",
+    "target_audience": "Judges"
+  },
+  "sample_response": {
+    "status": "SUCCESS",
+    "asp_execution_time_ms": 14.2,
+    "parsed_tags": [
+      "DeFi",
+      "XLayer",
+      "AutonomousAgent",
+      "OKB"
+    ],
+    "generated_slides_count": 4,
+    "total_pitch_duration_seconds": 90,
+    "video_render_ready": true
+  }
+}

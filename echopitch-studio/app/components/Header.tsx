@@ -62,10 +62,6 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-600 dark:from-white dark:via-zinc-100 dark:to-zinc-300 bg-clip-text text-base font-black tracking-tight text-transparent">
               EchoPitch Studio
             </span>
-            <span className="inline-flex items-center gap-1 rounded-md bg-zinc-100 dark:bg-zinc-900 px-2 py-0.5 text-[10px] font-mono text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-800 uppercase">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse"></span>
-              OKX.AI
-            </span>
           </div>
         </div>
 

@@ -5,6 +5,8 @@
   "contract_address": "0x779ded0c9e1022225f8e0630b35a9b54be713736",
   "chain_id": 196,
   "name": "EchoPitch Studio",
+  "image": "https://raw.githubusercontent.com/YakiUdoph/echopitch-studio/main/echopitch-studio/public/logo.jpg",
+  "avatar": "https://static.okx.com/cdn/web3/wallet/marketplace/headimages/agent/avatar/94d54dd0-6a4b-4163-b0e8-3e4f89c8c6f4.jpg",
   "version": "1.2.0-hackathon",
   "author": "EchoPitch Studio / OKX Hackathon Team",
   "network": "OKX X Layer Mainnet (Chain ID 196)",

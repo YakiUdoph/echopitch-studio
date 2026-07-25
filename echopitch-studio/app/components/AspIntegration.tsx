@@ -96,6 +96,43 @@ export const AspIntegration: React.FC<AspIntegrationProps> = ({
         </div>
       </div>
 
+      {/* Hackathon Category Metadata Card */}
+      <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/80 p-6 backdrop-blur-xl shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <span className="rounded-md bg-emerald-500/10 px-2.5 py-1 text-xs font-bold text-emerald-400 border border-emerald-500/20">
+              {aspPayload.category || "Software Services"}
+            </span>
+            <span className="text-zinc-600 text-xs">•</span>
+            <span className="rounded-md bg-purple-500/10 px-2.5 py-1 text-xs font-bold text-purple-400 border border-purple-500/20">
+              {aspPayload.subCategory || "AI Video & Script Automation"}
+            </span>
+          </div>
+          <h3 className="text-sm font-bold text-zinc-100 mt-1">
+            OKX Genesis Hackathon Classification
+          </h3>
+          <div className="flex flex-wrap items-center gap-2 mt-1">
+            <span className="text-xs text-zinc-400 font-medium">Award Categories:</span>
+            {(aspPayload.awardCategories || ["Creative Genius", "Best Product", "Software Utility"]).map((award, i) => (
+              <span key={i} className="rounded-md bg-zinc-800 px-2 py-0.5 text-[11px] font-mono text-zinc-200 border border-zinc-700">
+                🏆 {award}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-col items-start md:items-end gap-2 border-t md:border-t-0 border-zinc-800 pt-4 md:pt-0 w-full md:w-auto">
+          <div className="flex items-center gap-2 text-xs font-mono text-zinc-300">
+            <span className="text-zinc-500">Max Demo:</span>
+            <span className="font-bold text-emerald-400">{aspPayload.maxDemoDuration || "90s"}</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs font-mono text-zinc-400">
+            <span className="text-zinc-500">Chains:</span>
+            <span className="text-zinc-300">{(aspPayload.compatibleChains || ["X Layer (196)"]).join(", ")}</span>
+          </div>
+        </div>
+      </div>
+
       {/* Monetization & Network Settings Card */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <div className="flex flex-col justify-between rounded-xl border border-zinc-800/80 bg-zinc-950 p-6 shadow-lg">

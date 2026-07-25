@@ -53,6 +53,11 @@ export interface OkxAspPayload {
   version: string;
   author: string;
   network: string; // "X Layer Testnet / Mainnet"
+  category: string;
+  subCategory: string;
+  awardCategories: string[];
+  maxDemoDuration: string;
+  compatibleChains: string[];
   description: string;
   endpoint: string;
   monetization: {
@@ -573,6 +578,11 @@ export const MOCK_OKX_ASP_PAYLOAD_DEFI: OkxAspPayload = {
   version: "1.2.0-hackathon",
   author: "EchoPitch Studio / OKX Hackathon Team",
   network: "OKX X Layer Mainnet / Testnet",
+  category: "Software Services",
+  subCategory: "AI Video & Script Automation",
+  awardCategories: ["Creative Genius", "Best Product", "Software Utility"],
+  maxDemoDuration: "90s",
+  compatibleChains: ["X Layer Mainnet (196)", "X Layer Testnet (195)"],
   description: "Autonomous Agentic Skill Package for automated DEX yield optimization, timestamped pitch synthesis, and OKB gas micro-settlement.",
   endpoint: "https://api.echopitch.ai/v1/asp/execute",
   monetization: {

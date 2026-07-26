@@ -18,14 +18,14 @@ RUN mkdir -p /app/data && chmod 777 /app/data
 # Install global OKX A2A Node CLI
 RUN npm install -g @okxweb3/a2a-node@0.1.10
 
-# Copy package manifests from echopitch-studio
-COPY echopitch-studio/package.json echopitch-studio/package-lock.json* ./
+# Copy package manifests
+COPY package.json package-lock.json* ./
 
 # Install application dependencies
 RUN npm install --omit=dev || npm install
 
 # Copy application scripts and source code
-COPY echopitch-studio/ .
+COPY . .
 
 # Set default environment variables for EchoPitch Studio (Agent ID #9230)
 ENV PORT=10000 \

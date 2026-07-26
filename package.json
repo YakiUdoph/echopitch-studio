@@ -1,0 +1,19 @@
+{
+  "name": "echopitch-a2a-daemon",
+  "version": "0.1.0",
+  "private": true,
+  "description": "EchoPitch AI Studio Agent ID #9230 OKX A2A Node Daemon Service",
+  "main": "scripts/start-a2a.js",
+  "scripts": {
+    "start": "node scripts/start-a2a.js",
+    "start:a2a": "node scripts/start-a2a.js",
+    "dev": "npm --prefix echopitch-studio run dev",
+    "build": "npm --prefix echopitch-studio run build"
+  },
+  "dependencies": {
+    "@okxweb3/a2a-node": "^0.1.10"
+  },
+  "engines": {
+    "node": ">=22.14.0"
+  }
+}

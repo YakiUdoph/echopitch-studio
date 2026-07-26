@@ -19,41 +19,41 @@ export const WorkspaceControlToolbar: React.FC<WorkspaceControlToolbarProps> = (
 }) => {
   return (
     <div className="w-full max-w-7xl mx-auto px-6 py-3">
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 rounded-2xl border border-zinc-200 dark:border-zinc-800/80 bg-white/80 dark:bg-zinc-900/60 px-5 py-3 backdrop-blur-xl shadow-md">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 rounded-2xl glass-panel px-6 py-3.5 shadow-[0_4px_25px_rgba(0,0,0,0.4)]">
         {/* Left: Pitch Duration Selector Pills */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-700 dark:text-zinc-300">
-            <Clock className="h-4 w-4 text-emerald-500" />
+          <div className="flex items-center gap-2 text-xs font-extrabold text-cyan-200">
+            <Clock className="h-4 w-4 text-cyan-400 drop-shadow-[0_0_6px_rgba(6,182,212,0.8)]" />
             <span>Pitch Duration:</span>
           </div>
 
-          <div className="flex items-center rounded-xl bg-zinc-100 dark:bg-zinc-950 p-1 border border-zinc-200 dark:border-zinc-800 text-xs">
+          <div className="flex items-center rounded-xl bg-zinc-950/80 p-1 border border-cyan-500/20 text-xs">
             <button
               onClick={() => onSelectPitchDuration(60)}
-              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 pitchDuration === 60
-                  ? "bg-emerald-600 text-white shadow-sm"
-                  : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200"
+                  ? "bg-cyan-950/80 text-cyan-200 shadow-[0_0_12px_rgba(6,182,212,0.4)] border border-cyan-400/50"
+                  : "text-zinc-400 hover:text-cyan-200 hover:bg-zinc-800/50"
               }`}
             >
               60s (Elevator)
             </button>
             <button
               onClick={() => onSelectPitchDuration(90)}
-              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 pitchDuration === 90
-                  ? "bg-emerald-600 text-white shadow-sm"
-                  : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200"
+                  ? "bg-cyan-950/80 text-cyan-200 shadow-[0_0_12px_rgba(6,182,212,0.4)] border border-cyan-400/50"
+                  : "text-zinc-400 hover:text-cyan-200 hover:bg-zinc-800/50"
               }`}
             >
               90s (Standard)
             </button>
             <button
               onClick={() => onSelectPitchDuration(180)}
-              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 pitchDuration === 180
-                  ? "bg-emerald-600 text-white shadow-sm"
-                  : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200"
+                  ? "bg-cyan-950/80 text-cyan-200 shadow-[0_0_12px_rgba(6,182,212,0.4)] border border-cyan-400/50"
+                  : "text-zinc-400 hover:text-cyan-200 hover:bg-zinc-800/50"
               }`}
             >
               3-Min (Deep Dive)
@@ -63,19 +63,19 @@ export const WorkspaceControlToolbar: React.FC<WorkspaceControlToolbarProps> = (
 
         {/* Right: Progressive Disclosure Mode Toggle (Simple / Expert Mode) */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-700 dark:text-zinc-300">
-            <Sliders className="h-4 w-4 text-indigo-500" />
+          <div className="flex items-center gap-2 text-xs font-extrabold text-cyan-200">
+            <Sliders className="h-4 w-4 text-cyan-400 drop-shadow-[0_0_6px_rgba(6,182,212,0.8)]" />
             <span>View Mode:</span>
           </div>
 
-          <div className="flex items-center gap-2 rounded-xl bg-zinc-100 dark:bg-zinc-950 px-3 py-1.5 border border-zinc-200 dark:border-zinc-800 text-xs">
-            <span className={`text-[11px] font-semibold ${!isExpertMode ? "text-emerald-600 dark:text-emerald-400 font-bold" : "text-zinc-400 dark:text-zinc-500"}`}>
+          <div className="flex items-center gap-2 rounded-xl bg-zinc-950/80 px-3.5 py-1.5 border border-cyan-500/20 text-xs">
+            <span className={`text-[11px] font-bold ${!isExpertMode ? "text-cyan-400 drop-shadow-[0_0_6px_rgba(6,182,212,0.6)]" : "text-zinc-500"}`}>
               Simple
             </span>
             <button
               onClick={onToggleExpertMode}
               className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                isExpertMode ? "bg-emerald-600" : "bg-zinc-300 dark:bg-zinc-700"
+                isExpertMode ? "bg-cyan-600 shadow-[0_0_10px_rgba(6,182,212,0.6)]" : "bg-zinc-800"
               }`}
             >
               <span
@@ -84,7 +84,7 @@ export const WorkspaceControlToolbar: React.FC<WorkspaceControlToolbarProps> = (
                 }`}
               />
             </button>
-            <span className={`text-[11px] font-semibold ${isExpertMode ? "text-emerald-600 dark:text-emerald-400 font-bold" : "text-zinc-400 dark:text-zinc-500"}`}>
+            <span className={`text-[11px] font-bold ${isExpertMode ? "text-cyan-400 drop-shadow-[0_0_6px_rgba(6,182,212,0.6)]" : "text-zinc-500"}`}>
               Expert Mode
             </span>
           </div>
@@ -93,3 +93,4 @@ export const WorkspaceControlToolbar: React.FC<WorkspaceControlToolbarProps> = (
     </div>
   );
 };
+

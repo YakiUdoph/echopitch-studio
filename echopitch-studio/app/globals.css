@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #090d16;
+  --foreground: #ededed;
 }
 
 @theme inline {
@@ -12,15 +12,64 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  overflow-x: hidden;
 }
+
+/* Futuristic Technical Grid Background */
+.bg-cyber-grid {
+  background-image: 
+    linear-gradient(to right, rgba(6, 182, 212, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(6, 182, 212, 0.04) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Glassmorphism Panel Base */
+.glass-panel {
+  background: rgba(10, 14, 23, 0.65);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(6, 182, 212, 0.18);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37), 0 0 15px 0 rgba(6, 182, 212, 0.04);
+}
+
+.glass-panel-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-panel-hover:hover {
+  border-color: rgba(6, 182, 212, 0.45);
+  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.45), 0 0 25px 0 rgba(6, 182, 212, 0.2);
+  transform: translateY(-2px);
+}
+
+/* Cyan Glow Utilities */
+.cyan-glow-box {
+  box-shadow: 0 0 20px rgba(6, 182, 212, 0.35);
+}
+
+.cyan-glow-text {
+  text-shadow: 0 0 12px rgba(6, 182, 212, 0.6);
+}
+
+/* Custom Breathing Pulse Keyframes */
+@keyframes breathing-pulse {
+  0%, 100% {
+    transform: scale(1) translate(-50%, -50%);
+    opacity: 0.03;
+    filter: drop-shadow(0 0 20px rgba(6, 182, 212, 0.2));
+  }
+  50% {
+    transform: scale(1.06) translate(-47%, -47%);
+    opacity: 0.065;
+    filter: drop-shadow(0 0 35px rgba(6, 182, 212, 0.5));
+  }
+}
+
+.animate-breathing-watermark {
+  animation: breathing-pulse 8s ease-in-out infinite;
+}
+

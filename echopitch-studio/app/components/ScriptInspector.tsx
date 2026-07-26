@@ -63,15 +63,15 @@ export const ScriptInspector: React.FC<ScriptInspectorProps> = ({
   };
 
   return (
-    <div className="flex flex-col gap-10 w-full max-w-7xl mx-auto px-6 py-8">
+    <div className="flex flex-col gap-10 w-full max-w-7xl mx-auto py-4">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-2xl border border-zinc-800/80 bg-zinc-900/80 p-6 backdrop-blur-xl shadow-xl">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-2xl glass-panel glass-panel-hover p-6 shadow-2xl">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-800 text-indigo-400 border border-zinc-700/80">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-950 text-cyan-400 border border-cyan-500/30 shadow-[0_0_12px_rgba(6,182,212,0.3)]">
             <FileText className="h-5 w-5" />
           </div>
           <div>
-            <h2 className="text-base font-extrabold text-zinc-100 flex items-center gap-2">
+            <h2 className="text-base font-black text-cyan-100 flex items-center gap-2">
               Script & Telemetry Inspector
             </h2>
             <span className="text-xs text-zinc-400 block">
@@ -81,15 +81,15 @@ export const ScriptInspector: React.FC<ScriptInspectorProps> = ({
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="font-mono text-xs text-emerald-400 font-bold bg-zinc-950 px-3 py-1.5 rounded-lg border border-zinc-800">
+          <span className="font-mono text-xs text-cyan-300 font-bold bg-zinc-950 px-3 py-1.5 rounded-lg border border-cyan-500/30 shadow-[0_0_8px_rgba(6,182,212,0.2)]">
             Playback: {formatTime(currentTimeSeconds)} / 01:30
           </span>
           <button
             onClick={onTogglePlay}
-            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold text-white transition-all ${
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold text-white transition-all cursor-pointer ${
               isPlaying
-                ? "bg-amber-600 hover:bg-amber-500 shadow-sm"
-                : "bg-emerald-600 hover:bg-emerald-500 shadow-sm"
+                ? "bg-amber-600 hover:bg-amber-500 shadow-[0_0_15px_rgba(217,119,6,0.5)]"
+                : "bg-cyan-600 hover:bg-cyan-500 shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:shadow-[0_0_28px_rgba(6,182,212,0.65)]"
             }`}
           >
             {isPlaying ? (
@@ -110,15 +110,15 @@ export const ScriptInspector: React.FC<ScriptInspectorProps> = ({
       {/* Voice Controls Panel & Telemetry Card */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Synthetic Voice Selector */}
-        <div className="lg:col-span-6 flex flex-col justify-between rounded-2xl border border-zinc-800/80 bg-zinc-900/80 p-6 backdrop-blur-xl shadow-xl">
-          <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+        <div className="lg:col-span-6 flex flex-col justify-between rounded-2xl glass-panel glass-panel-hover p-6 shadow-2xl">
+          <div className="flex items-center justify-between border-b border-cyan-500/20 pb-3">
             <div className="flex items-center gap-2">
-              <Headphones className="h-4 w-4 text-indigo-400" />
-              <h3 className="text-xs font-bold text-zinc-200">
+              <Headphones className="h-4 w-4 text-cyan-400 drop-shadow-[0_0_6px_rgba(6,182,212,0.8)]" />
+              <h3 className="text-xs font-extrabold text-cyan-100">
                 Synthetic Voice Model Settings
               </h3>
             </div>
-            <span className="text-[10px] font-mono text-zinc-300 bg-zinc-950 px-2 py-0.5 rounded border border-zinc-800">
+            <span className="text-[10px] font-mono text-cyan-300 bg-cyan-950 px-2 py-0.5 rounded border border-cyan-500/30">
               <Tooltip termKey="SpeechSynthesis">SpeechSynthesis API</Tooltip>
             </span>
           </div>
@@ -134,7 +134,7 @@ export const ScriptInspector: React.FC<ScriptInspectorProps> = ({
                   const found = MOCK_VOICE_PROFILES.find((v) => v.id === e.target.value);
                   if (found) onSelectVoice(found);
                 }}
-                className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs font-semibold text-zinc-200 focus:border-zinc-700 focus:outline-none"
+                className="w-full rounded-xl border border-cyan-500/30 bg-zinc-950 px-3 py-2 text-xs font-semibold text-cyan-100 focus:border-cyan-400 focus:outline-none cursor-pointer"
               >
                 {MOCK_VOICE_PROFILES.map((vp) => (
                   <option key={vp.id} value={vp.id}>
@@ -150,35 +150,35 @@ export const ScriptInspector: React.FC<ScriptInspectorProps> = ({
         </div>
 
         {/* Telemetry Metrics Card */}
-        <div className="lg:col-span-6 flex flex-col justify-between rounded-2xl border border-zinc-800/80 bg-zinc-900/80 p-6 backdrop-blur-xl shadow-xl">
-          <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+        <div className="lg:col-span-6 flex flex-col justify-between rounded-2xl glass-panel glass-panel-hover p-6 shadow-2xl">
+          <div className="flex items-center justify-between border-b border-cyan-500/20 pb-3">
             <div className="flex items-center gap-2">
-              <BarChart2 className="h-4 w-4 text-emerald-400" />
-              <h3 className="text-xs font-bold text-zinc-200">
+              <BarChart2 className="h-4 w-4 text-cyan-400 drop-shadow-[0_0_6px_rgba(6,182,212,0.8)]" />
+              <h3 className="text-xs font-extrabold text-cyan-100">
                 Pacing & Cadence Telemetry
               </h3>
             </div>
-            <span className="text-[10px] font-mono text-emerald-400 font-semibold">
+            <span className="text-[10px] font-mono text-cyan-300 font-semibold">
               Standard WPM: 145 - 155
             </span>
           </div>
 
           <div className="mt-4 grid grid-cols-3 gap-3">
-            <div className="flex flex-col rounded-xl bg-zinc-950 p-3 border border-zinc-800">
+            <div className="flex flex-col rounded-xl bg-zinc-950/80 p-3 border border-cyan-500/20">
               <span className="text-[10px] font-semibold text-zinc-400">Total Words</span>
-              <span className="mt-1 text-lg font-black text-zinc-100">
+              <span className="mt-1 text-lg font-black text-cyan-100">
                 {scriptItems.reduce((acc, item) => acc + item.text.split(/\s+/).length, 0)}
               </span>
             </div>
 
-            <div className="flex flex-col rounded-xl bg-zinc-950 p-3 border border-zinc-800">
+            <div className="flex flex-col rounded-xl bg-zinc-950/80 p-3 border border-cyan-500/20">
               <span className="text-[10px] font-semibold text-zinc-400">Est. Duration</span>
-              <span className="mt-1 text-lg font-black text-emerald-400">
+              <span className="mt-1 text-lg font-black text-cyan-400">
                 90s
               </span>
             </div>
 
-            <div className="flex flex-col rounded-xl bg-zinc-950 p-3 border border-zinc-800">
+            <div className="flex flex-col rounded-xl bg-zinc-950/80 p-3 border border-cyan-500/20">
               <span className="text-[10px] font-semibold text-zinc-400">Target Pace</span>
               <span className="mt-1 text-lg font-black text-cyan-400">
                 148 WPM
@@ -189,10 +189,10 @@ export const ScriptInspector: React.FC<ScriptInspectorProps> = ({
       </div>
 
       {/* Side-by-Side Script Editor with Timecodes */}
-      <div className="flex flex-col gap-4 rounded-2xl border border-zinc-800/80 bg-zinc-900/80 p-6 backdrop-blur-xl shadow-xl">
-        <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-          <h3 className="text-xs font-bold text-zinc-200 flex items-center gap-2">
-            <Clock className="h-4 w-4 text-emerald-400" />
+      <div className="flex flex-col gap-4 rounded-2xl glass-panel glass-panel-hover p-6 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-cyan-500/20 pb-3">
+          <h3 className="text-xs font-extrabold text-cyan-100 flex items-center gap-2">
+            <Clock className="h-4 w-4 text-cyan-400" />
             Synchronized Timecode Script Blocks
           </h3>
           <span className="text-[10px] font-mono text-zinc-400">
@@ -212,10 +212,10 @@ export const ScriptInspector: React.FC<ScriptInspectorProps> = ({
                   onSeekTime(item.startTimeSec);
                   onSelectScriptItem(item);
                 }}
-                className={`flex flex-col sm:flex-row items-start sm:items-center justify-between rounded-xl border p-4 transition-all cursor-pointer ${
+                className={`flex flex-col sm:flex-row items-start sm:items-center justify-between rounded-xl border p-4 transition-all cursor-pointer hover:scale-[1.005] ${
                   isCurrentlyActive
-                    ? "border-zinc-700 bg-zinc-950 shadow-md ring-1 ring-zinc-700"
-                    : "border-zinc-800/80 bg-zinc-950/60 hover:border-zinc-700 hover:bg-zinc-900"
+                    ? "border-cyan-400/70 bg-cyan-950/40 ring-1 ring-cyan-400/40 shadow-[0_0_18px_rgba(6,182,212,0.25)]"
+                    : "border-cyan-500/20 bg-zinc-950/60 hover:border-cyan-400/40 hover:bg-zinc-900/80"
                 }`}
               >
                 {/* Time & Emotion Badges */}
@@ -223,7 +223,7 @@ export const ScriptInspector: React.FC<ScriptInspectorProps> = ({
                   <div
                     className={`flex flex-col items-center justify-center rounded-lg px-3 py-1 font-mono text-xs ${
                       isCurrentlyActive
-                        ? "bg-emerald-600 text-white font-bold"
+                        ? "bg-cyan-600 text-white font-bold shadow-[0_0_10px_rgba(6,182,212,0.5)]"
                         : "bg-zinc-800 text-zinc-400"
                     }`}
                   >
@@ -233,7 +233,7 @@ export const ScriptInspector: React.FC<ScriptInspectorProps> = ({
                     )}
                   </div>
 
-                  <span className="rounded bg-zinc-900 px-2 py-0.5 text-[10px] font-bold text-zinc-300 uppercase border border-zinc-800">
+                  <span className="rounded bg-zinc-900 px-2 py-0.5 text-[10px] font-bold text-cyan-300 uppercase border border-cyan-500/30">
                     {item.emotion}
                   </span>
                 </div>
@@ -246,11 +246,11 @@ export const ScriptInspector: React.FC<ScriptInspectorProps> = ({
                         type="text"
                         value={editText}
                         onChange={(e) => setEditText(e.target.value)}
-                        className="flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1 text-xs text-zinc-100 focus:outline-none"
+                        className="flex-1 rounded-lg border border-cyan-500/40 bg-zinc-900 px-3 py-1 text-xs text-cyan-100 focus:outline-none"
                       />
                       <button
                         onClick={() => handleSaveEdit(item.id)}
-                        className="rounded-lg bg-emerald-600 px-3 py-1 text-xs font-bold text-white hover:bg-emerald-500"
+                        className="rounded-lg bg-cyan-600 px-3 py-1 text-xs font-bold text-white hover:bg-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.4)]"
                       >
                         Save
                       </button>
@@ -258,7 +258,7 @@ export const ScriptInspector: React.FC<ScriptInspectorProps> = ({
                   ) : (
                     <p
                       className={`text-xs sm:text-sm leading-relaxed ${
-                        isCurrentlyActive ? "text-zinc-100 font-semibold" : "text-zinc-300"
+                        isCurrentlyActive ? "text-cyan-100 font-bold" : "text-zinc-300"
                       }`}
                     >
                       {item.text}
@@ -271,12 +271,12 @@ export const ScriptInspector: React.FC<ScriptInspectorProps> = ({
                   className="flex items-center gap-3 shrink-0 mt-2 sm:mt-0"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <span className="font-mono text-[11px] text-zinc-400">
+                  <span className="font-mono text-[11px] text-cyan-400/80">
                     {item.targetPaceWpm} WPM
                   </span>
                   <button
                     onClick={() => handleStartEdit(item)}
-                    className="p-1 text-zinc-400 hover:text-emerald-400 transition-colors"
+                    className="p-1 text-zinc-400 hover:text-cyan-300 transition-colors"
                   >
                     <Edit3 className="h-3.5 w-3.5" />
                   </button>
@@ -288,16 +288,16 @@ export const ScriptInspector: React.FC<ScriptInspectorProps> = ({
 
         {/* Expert Mode Overlay Panel */}
         {isExpertMode && (
-          <div className="mt-4 rounded-xl bg-zinc-950 p-3.5 font-mono text-[11px] text-emerald-400 border border-zinc-800 backdrop-blur-md">
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-1.5 mb-1.5">
-              <span className="font-bold text-[10px] text-emerald-400 uppercase tracking-wider">
+          <div className="mt-4 rounded-xl bg-zinc-950 p-3.5 font-mono text-[11px] text-cyan-300 border border-cyan-500/30 backdrop-blur-md shadow-[0_0_12px_rgba(6,182,212,0.2)]">
+            <div className="flex items-center justify-between border-b border-cyan-500/20 pb-1.5 mb-1.5">
+              <span className="font-bold text-[10px] text-cyan-400 uppercase tracking-wider">
                 ⚡ [EXPERT MODE OVERLAY] Script Telemetry Payload
               </span>
               <span className="text-[10px] text-amber-400 font-semibold">Latency: 142ms</span>
             </div>
             <div className="flex flex-col gap-1 text-[10px] text-zinc-300">
               <div className="flex justify-between">
-                <span>Active Voice: <strong className="text-emerald-400">{selectedVoice.name}</strong></span>
+                <span>Active Voice: <strong className="text-cyan-400">{selectedVoice.name}</strong></span>
                 <span>Script Blocks: {scriptItems.length}</span>
               </div>
               <div className="overflow-x-auto text-[10px] text-zinc-400 truncate">
@@ -310,3 +310,4 @@ export const ScriptInspector: React.FC<ScriptInspectorProps> = ({
     </div>
   );
 };
+

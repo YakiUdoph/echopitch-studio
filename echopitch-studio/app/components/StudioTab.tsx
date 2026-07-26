@@ -213,18 +213,18 @@ export const StudioTab: React.FC<StudioTabProps> = ({
       )}
 
       {/* Feature 1: Collapsible Ingestion & Markdown AI Parser Panel */}
-      <div className="flex flex-col rounded-2xl border border-zinc-200 dark:border-zinc-800/80 bg-white/80 dark:bg-zinc-900/40 p-6 backdrop-blur-xl shadow-2xl transition-all duration-300 hover:border-zinc-300 dark:hover:border-zinc-700/80 hover:scale-[1.005]">
+      <div className="flex flex-col rounded-2xl glass-panel glass-panel-hover p-6 shadow-2xl">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2.5">
-              <h2 className="text-base font-extrabold text-zinc-900 dark:text-zinc-100">
+              <h2 className="text-base font-black text-cyan-100">
                 1. Ingestion & Markdown AI Parser
               </h2>
-              <span className="text-xs font-mono text-emerald-600 dark:text-emerald-400 bg-zinc-100 dark:bg-zinc-950 px-2 py-0.5 rounded border border-zinc-200 dark:border-zinc-800">
+              <span className="text-xs font-mono text-cyan-300 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-500/30">
                 LLM Parser
               </span>
             </div>
-            <span className="text-xs text-zinc-600 dark:text-zinc-400 mt-1 block">
+            <span className="text-xs text-zinc-400 mt-1 block">
               Extracts problem statement, solution & architecture from repository Markdown
             </span>
           </div>
@@ -233,9 +233,9 @@ export const StudioTab: React.FC<StudioTabProps> = ({
             {/* Collapse / Expand Source Markdown Panel Button */}
             <button
               onClick={() => setIsSourceMarkdownOpen(!isSourceMarkdownOpen)}
-              className="flex items-center gap-2 rounded-xl bg-zinc-800/90 border border-zinc-700/80 px-4 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-700 transition-all duration-300 hover:scale-105 cursor-pointer"
+              className="flex items-center gap-2 rounded-xl bg-zinc-900/90 border border-cyan-500/30 px-4 py-2 text-xs font-bold text-cyan-200 hover:bg-zinc-800 hover:border-cyan-400/50 transition-all duration-300 cursor-pointer"
             >
-              <Code2 className="h-4 w-4 text-emerald-400" />
+              <Code2 className="h-4 w-4 text-cyan-400" />
               <span>{isSourceMarkdownOpen ? "Hide Markdown Editor" : "Source Markdown Editor"}</span>
               {isSourceMarkdownOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             </button>
@@ -244,9 +244,9 @@ export const StudioTab: React.FC<StudioTabProps> = ({
             <button
               onClick={onRunAiParser}
               disabled={isProcessing}
-              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 px-4 py-2 text-xs font-bold text-white shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] disabled:opacity-50 transition-all duration-300 hover:scale-105 cursor-pointer"
+              className="flex items-center gap-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 px-4 py-2 text-xs font-bold text-white shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:shadow-[0_0_28px_rgba(6,182,212,0.6)] disabled:opacity-50 transition-all duration-300 hover:scale-105 cursor-pointer"
             >
-              <Sparkles className="h-4 w-4" />
+              <Sparkles className="h-4 w-4 text-cyan-100" />
               <span>Parse & Generate Deck</span>
             </button>
           </div>
@@ -261,9 +261,9 @@ export const StudioTab: React.FC<StudioTabProps> = ({
                 value={githubUrl}
                 onChange={(e) => onUpdateGithubUrl(e.target.value)}
                 placeholder="Enter GitHub Repo URL (e.g. https://github.com/echopitch/x-vault-ai)"
-                className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-950 px-4 py-3 font-mono text-xs text-zinc-900 dark:text-zinc-200 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none transition-all shadow-inner"
+                className="w-full rounded-xl border border-cyan-500/30 bg-zinc-950/90 px-4 py-3 font-mono text-xs text-cyan-100 placeholder-zinc-500 focus:border-cyan-400 focus:shadow-[0_0_15px_rgba(6,182,212,0.3)] focus:outline-none transition-all shadow-inner"
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[10px] text-zinc-400 bg-zinc-200 dark:bg-zinc-800 px-2 py-0.5 rounded">
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[10px] text-cyan-300 bg-cyan-950 px-2 py-0.5 rounded border border-cyan-500/30">
                 GitHub API
               </span>
             </div>
@@ -277,7 +277,7 @@ export const StudioTab: React.FC<StudioTabProps> = ({
                 }
               }}
               disabled={isProcessing}
-              className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 px-6 py-3 text-xs font-bold text-white shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] disabled:opacity-50 transition-all duration-300 hover:scale-105 shrink-0 cursor-pointer"
+              className="flex items-center justify-center gap-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 px-6 py-3 text-xs font-bold text-white shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:shadow-[0_0_30px_rgba(6,182,212,0.65)] disabled:opacity-50 transition-all duration-300 hover:scale-105 shrink-0 cursor-pointer"
             >
               <Sparkles className="h-4 w-4" />
               <span>Fetch & Parse Repo ({pitchDuration}s)</span>
@@ -286,7 +286,7 @@ export const StudioTab: React.FC<StudioTabProps> = ({
 
           {/* Quick-Select Demo Presets Bar */}
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+            <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
               Try:
             </span>
             <button
@@ -294,7 +294,7 @@ export const StudioTab: React.FC<StudioTabProps> = ({
                 onUpdateGithubUrl("https://github.com/echopitch/x-vault-ai");
                 if (onFetchGithubRepo) onFetchGithubRepo("https://github.com/echopitch/x-vault-ai");
               }}
-              className="rounded-lg bg-zinc-100 dark:bg-zinc-900 px-2.5 py-1 font-mono text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 border border-zinc-300 dark:border-zinc-800 hover:border-emerald-500 transition-all cursor-pointer"
+              className="rounded-lg bg-zinc-900 px-2.5 py-1 font-mono text-[11px] font-semibold text-cyan-400 border border-cyan-500/30 hover:border-cyan-400 hover:shadow-[0_0_10px_rgba(6,182,212,0.4)] transition-all cursor-pointer"
             >
               ⚡ X-Vault AI
             </button>
@@ -303,7 +303,7 @@ export const StudioTab: React.FC<StudioTabProps> = ({
                 onUpdateGithubUrl("https://github.com/echopitch/neurogrid-asp");
                 if (onFetchGithubRepo) onFetchGithubRepo("https://github.com/echopitch/neurogrid-asp");
               }}
-              className="rounded-lg bg-zinc-100 dark:bg-zinc-900 px-2.5 py-1 font-mono text-[11px] font-semibold text-cyan-600 dark:text-cyan-400 border border-zinc-300 dark:border-zinc-800 hover:border-cyan-500 transition-all cursor-pointer"
+              className="rounded-lg bg-zinc-900 px-2.5 py-1 font-mono text-[11px] font-semibold text-cyan-400 border border-cyan-500/30 hover:border-cyan-400 hover:shadow-[0_0_10px_rgba(6,182,212,0.4)] transition-all cursor-pointer"
             >
               🚀 NeuroGrid ASP
             </button>
@@ -312,7 +312,7 @@ export const StudioTab: React.FC<StudioTabProps> = ({
                 onUpdateGithubUrl("https://github.com/echopitch/defi-yield-engine");
                 if (onFetchGithubRepo) onFetchGithubRepo("https://github.com/echopitch/defi-yield-engine");
               }}
-              className="rounded-lg bg-zinc-100 dark:bg-zinc-900 px-2.5 py-1 font-mono text-[11px] font-semibold text-amber-600 dark:text-amber-400 border border-zinc-300 dark:border-zinc-800 hover:border-amber-500 transition-all cursor-pointer"
+              className="rounded-lg bg-zinc-900 px-2.5 py-1 font-mono text-[11px] font-semibold text-cyan-400 border border-cyan-500/30 hover:border-cyan-400 hover:shadow-[0_0_10px_rgba(6,182,212,0.4)] transition-all cursor-pointer"
             >
               🔥 YieldPulse Engine
             </button>
@@ -341,15 +341,15 @@ export const StudioTab: React.FC<StudioTabProps> = ({
       {/* Main Workspace Split: Live Video Simulator + Pitch Storyboard */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
         {/* Feature 3: Browser-Native Audio & Slide Preview Canvas Stage */}
-        <div className="lg:col-span-7 flex flex-col rounded-2xl border border-zinc-200 dark:border-zinc-800/80 bg-white/80 dark:bg-zinc-900/40 p-6 backdrop-blur-xl shadow-2xl overflow-hidden relative transition-all duration-300 hover:border-zinc-300 dark:hover:border-zinc-700/80 hover:scale-[1.005]">
+        <div className="lg:col-span-7 flex flex-col rounded-2xl glass-panel glass-panel-hover p-6 shadow-2xl overflow-hidden relative">
           {/* Stage Header */}
-          <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800/80 pb-4">
+          <div className="flex items-center justify-between border-b border-cyan-500/20 pb-4">
             <div className="flex items-center gap-2">
-              <Video className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              <h3 className="text-xs font-bold text-zinc-900 dark:text-zinc-200">
+              <Video className="h-4 w-4 text-cyan-400 drop-shadow-[0_0_6px_rgba(6,182,212,0.8)]" />
+              <h3 className="text-xs font-extrabold text-cyan-100">
                 Live Visual Slide Render Stage
               </h3>
-              <span className="text-[10px] italic text-zinc-500 dark:text-zinc-400">
+              <span className="text-[10px] italic text-zinc-400">
                 *(Canvas, <Tooltip termKey="Web Audio Sync">Web Audio Sync</Tooltip> & <Tooltip termKey="FFmpeg WASM">FFmpeg WASM</Tooltip>)*
               </span>
             </div>
@@ -357,17 +357,17 @@ export const StudioTab: React.FC<StudioTabProps> = ({
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setIsInlineEditing(!isInlineEditing)}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all ${
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
                   isInlineEditing
-                    ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40"
-                    : "bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-800"
+                    ? "bg-cyan-950/80 text-cyan-300 border-cyan-400/50 shadow-[0_0_10px_rgba(6,182,212,0.4)]"
+                    : "bg-zinc-900 text-zinc-300 border-cyan-500/20 hover:bg-zinc-800 hover:text-cyan-200"
                 }`}
               >
                 {isInlineEditing ? <Check className="h-3.5 w-3.5" /> : <Edit3 className="h-3.5 w-3.5" />}
                 <span>{isInlineEditing ? "Done Editing" : "Inline Edit Slide"}</span>
               </button>
 
-              <span className="font-mono text-xs text-emerald-400 font-bold bg-zinc-950 px-2.5 py-1 rounded border border-zinc-800">
+              <span className="font-mono text-xs text-cyan-300 font-bold bg-zinc-950 px-2.5 py-1 rounded border border-cyan-500/30 shadow-[0_0_8px_rgba(6,182,212,0.2)]">
                 {Math.floor(currentTimeSeconds / 60)}:
                 {(currentTimeSeconds % 60).toString().padStart(2, "0")} / {Math.floor(pitchDuration / 60)}:{(pitchDuration % 60).toString().padStart(2, "0")}
               </span>
@@ -375,20 +375,20 @@ export const StudioTab: React.FC<StudioTabProps> = ({
           </div>
 
           {/* Live Slide Stage Canvas Box */}
-          <div className="relative mt-5 flex-1 min-h-[380px] rounded-xl border border-zinc-800 bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 p-8 flex flex-col justify-center items-center overflow-hidden">
+          <div className="relative mt-5 flex-1 min-h-[380px] rounded-xl border border-cyan-500/20 bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 p-8 flex flex-col justify-center items-center overflow-hidden shadow-[inset_0_0_30px_rgba(0,0,0,0.8)]">
             {/* Background Glow */}
             <div
-              className={`absolute -top-32 -left-32 w-80 h-80 rounded-full bg-gradient-to-tr ${currentSlide.themeColor} opacity-15 blur-3xl pointer-events-none transition-all duration-700`}
+              className={`absolute -top-32 -left-32 w-80 h-80 rounded-full bg-cyan-500/20 opacity-25 blur-3xl pointer-events-none transition-all duration-700`}
             />
 
             {/* Slide Content Box */}
             <div className="relative z-10 w-full max-w-xl flex flex-col gap-4">
               <div className="flex items-center justify-between">
-                <span className="rounded-full bg-zinc-800/90 border border-zinc-700 px-3 py-0.5 text-xs font-bold text-emerald-400 uppercase tracking-wider shadow-sm transition-all duration-300">
+                <span className="rounded-full bg-cyan-950/80 border border-cyan-500/40 px-3 py-0.5 text-xs font-bold text-cyan-300 uppercase tracking-wider shadow-[0_0_10px_rgba(6,182,212,0.3)]">
                   Slide 0{currentSlide.number} | {currentSlide.category} ({currentSlide.timeRange})
                 </span>
                 {isExpertMode && (
-                  <span className="font-mono text-[10px] text-amber-400 bg-zinc-950 px-2 py-0.5 rounded border border-zinc-800">
+                  <span className="font-mono text-[10px] text-amber-400 bg-zinc-950 px-2 py-0.5 rounded border border-cyan-500/30">
                     MS Range: {currentSlide.timeMsRange}
                   </span>
                 )}
@@ -400,23 +400,23 @@ export const StudioTab: React.FC<StudioTabProps> = ({
                     type="text"
                     value={currentSlide.title}
                     onChange={(e) => handleTitleChange(activeSlideIndex, e.target.value)}
-                    className="w-full text-2xl font-extrabold bg-zinc-950 text-white border border-emerald-500/50 rounded p-1"
+                    className="w-full text-2xl font-extrabold bg-zinc-950 text-cyan-100 border border-cyan-400/50 rounded p-1 shadow-[0_0_10px_rgba(6,182,212,0.3)]"
                   />
                 ) : (
-                  <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white via-zinc-100 to-zinc-300 bg-clip-text text-transparent">
+                  <h2 className="text-2xl sm:text-3xl font-black tracking-tight bg-gradient-to-r from-white via-cyan-100 to-cyan-300 bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(6,182,212,0.3)]">
                     {currentSlide.title}
                   </h2>
                 )}
-                <p className="mt-1.5 text-xs sm:text-sm font-medium text-zinc-400">
+                <p className="mt-1.5 text-xs sm:text-sm font-medium text-zinc-300">
                   {currentSlide.subtitle}
                 </p>
               </div>
 
               {/* Bullet Points */}
-              <div className="flex flex-col gap-2.5 rounded-xl border border-zinc-800/80 bg-zinc-900/90 p-5 backdrop-blur-md">
+              <div className="flex flex-col gap-2.5 rounded-xl border border-cyan-500/20 bg-zinc-950/80 p-5 backdrop-blur-md">
                 {currentSlide.content.map((bullet, i) => (
                   <div key={i} className="flex items-start gap-2.5 text-xs sm:text-sm text-zinc-200">
-                    <span className="mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-400 font-mono text-[10px] font-bold border border-emerald-500/20">
+                    <span className="mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-cyan-950 text-cyan-400 font-mono text-[10px] font-bold border border-cyan-500/40 shadow-[0_0_6px_rgba(6,182,212,0.4)]">
                       {i + 1}
                     </span>
                     {isInlineEditing ? (
@@ -424,7 +424,7 @@ export const StudioTab: React.FC<StudioTabProps> = ({
                         type="text"
                         value={bullet}
                         onChange={(e) => handleBulletChange(activeSlideIndex, i, e.target.value)}
-                        className="flex-1 bg-zinc-950 text-xs text-emerald-300 border border-zinc-700 rounded px-2 py-1"
+                        className="flex-1 bg-zinc-950 text-xs text-cyan-200 border border-cyan-500/40 rounded px-2 py-1"
                       />
                     ) : (
                       <span>{bullet}</span>
@@ -436,7 +436,7 @@ export const StudioTab: React.FC<StudioTabProps> = ({
           </div>
 
           {/* Audio Waveform Scrubber & Controls */}
-          <div className="mt-5 flex flex-col gap-3.5 rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+          <div className="mt-5 flex flex-col gap-3.5 rounded-xl border border-cyan-500/20 bg-zinc-950 p-4">
             {/* Feature 4: Dynamic Web Audio Frequency Waveform Visualizer */}
             <div className="flex h-8 items-end gap-1 px-1">
               {Array.from({ length: 40 }).map((_, i) => {
@@ -451,8 +451,8 @@ export const StudioTab: React.FC<StudioTabProps> = ({
                     className={`w-full rounded-t transition-all duration-300 ${
                       isActive
                         ? isPlaying
-                          ? "bg-gradient-to-t from-emerald-600 to-teal-400 shadow-sm animate-pulse"
-                          : "bg-gradient-to-t from-emerald-600 to-teal-400 shadow-sm"
+                          ? "bg-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.8)] animate-pulse"
+                          : "bg-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.6)]"
                         : "bg-zinc-800"
                     }`}
                   />
@@ -467,8 +467,8 @@ export const StudioTab: React.FC<StudioTabProps> = ({
                   onClick={onTogglePlay}
                   className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold text-white transition-all duration-300 hover:scale-105 cursor-pointer ${
                     isPlaying
-                      ? "bg-amber-600 hover:bg-amber-500 shadow-[0_0_15px_rgba(217,119,6,0.3)]"
-                      : "bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)]"
+                      ? "bg-amber-600 hover:bg-amber-500 shadow-[0_0_15px_rgba(217,119,6,0.5)]"
+                      : "bg-cyan-600 hover:bg-cyan-500 shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:shadow-[0_0_30px_rgba(6,182,212,0.65)]"
                   }`}
                 >
                   {isPlaying ? (
@@ -486,7 +486,7 @@ export const StudioTab: React.FC<StudioTabProps> = ({
 
                 <button
                   onClick={() => onSeekTime(0)}
-                  className="rounded-xl border border-zinc-800 bg-zinc-900 p-2 text-zinc-300 hover:bg-zinc-800 transition-all duration-200 hover:scale-105 cursor-pointer"
+                  className="rounded-xl border border-cyan-500/20 bg-zinc-900 p-2 text-zinc-300 hover:bg-zinc-800 hover:text-cyan-300 transition-all duration-200 hover:scale-105 cursor-pointer"
                   title="Rewind to 00:00"
                 >
                   <RotateCcw className="h-4 w-4" />
@@ -497,8 +497,8 @@ export const StudioTab: React.FC<StudioTabProps> = ({
                   onClick={() => setIsRecordingEnabled(!isRecordingEnabled)}
                   className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
                     isRecordingEnabled
-                      ? "bg-rose-500/20 text-rose-400 border-rose-500/40 animate-pulse"
-                      : "bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-zinc-200"
+                      ? "bg-rose-500/20 text-rose-400 border-rose-500/40 animate-pulse shadow-[0_0_12px_rgba(244,63,94,0.4)]"
+                      : "bg-zinc-900 text-zinc-400 border-cyan-500/20 hover:text-zinc-200"
                   }`}
                   title="Capture live stream into downloadable .webm video"
                 >
@@ -514,7 +514,7 @@ export const StudioTab: React.FC<StudioTabProps> = ({
                   <select
                     value={playbackSpeed}
                     onChange={(e) => onChangeSpeed(Number(e.target.value))}
-                    className="rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1 font-mono text-xs text-zinc-200 focus:outline-none cursor-pointer"
+                    className="rounded-lg border border-cyan-500/20 bg-zinc-900 px-2 py-1 font-mono text-xs text-zinc-200 focus:outline-none cursor-pointer"
                   >
                     <option value={1.0}>1.0x</option>
                     <option value={1.25}>1.25x</option>
@@ -530,7 +530,7 @@ export const StudioTab: React.FC<StudioTabProps> = ({
                       const found = MOCK_VOICE_PROFILES.find((v) => v.id === e.target.value);
                       if (found) onSelectVoice(found);
                     }}
-                    className="rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs text-zinc-200 focus:outline-none cursor-pointer"
+                    className="rounded-lg border border-cyan-500/20 bg-zinc-900 px-2 py-1 text-xs text-zinc-200 focus:outline-none cursor-pointer"
                   >
                     {MOCK_VOICE_PROFILES.map((vp) => (
                       <option key={vp.id} value={vp.id}>
@@ -545,17 +545,17 @@ export const StudioTab: React.FC<StudioTabProps> = ({
         </div>
 
         {/* Feature 2: Auto-Script & Slide Storyboard Engine with Inline Editable Text */}
-        <div className="lg:col-span-5 flex flex-col rounded-2xl border border-zinc-200 dark:border-zinc-800/80 bg-white/80 dark:bg-zinc-900/40 p-6 backdrop-blur-xl shadow-2xl transition-all duration-300 hover:border-zinc-300 dark:hover:border-zinc-700/80 hover:scale-[1.005]">
-          <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800/80 pb-4">
+        <div className="lg:col-span-5 flex flex-col rounded-2xl glass-panel glass-panel-hover p-6 shadow-2xl">
+          <div className="flex items-center justify-between border-b border-cyan-500/20 pb-4">
             <div>
-              <h3 className="text-xs font-bold text-zinc-900 dark:text-zinc-200">
+              <h3 className="text-xs font-extrabold text-cyan-100">
                 2. Pitch Storyboard & Voice Script
               </h3>
               <span className="text-[11px] text-zinc-400 block mt-0.5">
                 Inline edit script text below (updates Web Speech API in real-time)
               </span>
             </div>
-            <span className="font-mono text-[10px] bg-zinc-950 px-2 py-0.5 rounded text-zinc-300 border border-zinc-800">
+            <span className="font-mono text-[10px] bg-cyan-950 px-2 py-0.5 rounded text-cyan-300 border border-cyan-500/30 shadow-[0_0_8px_rgba(6,182,212,0.2)]">
               {slides.length} Slides
             </span>
           </div>
@@ -570,15 +570,15 @@ export const StudioTab: React.FC<StudioTabProps> = ({
                   onClick={() => setActiveSlideIndex(idx)}
                   className={`flex flex-col gap-2 rounded-xl border p-4 transition-all duration-300 cursor-pointer hover:scale-[1.01] ${
                     isSelected
-                      ? "border-zinc-700 bg-zinc-950 ring-1 ring-zinc-700 shadow-md"
-                      : "border-zinc-800/80 bg-zinc-950/60 hover:border-zinc-700 hover:bg-zinc-900"
+                      ? "border-cyan-400/70 bg-cyan-950/40 ring-1 ring-cyan-400/40 shadow-[0_0_20px_rgba(6,182,212,0.25)]"
+                      : "border-cyan-500/20 bg-zinc-950/60 hover:border-cyan-400/40 hover:bg-zinc-900/80"
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span
                         className={`font-mono text-xs font-bold px-2 py-0.5 rounded transition-all duration-300 ${
-                          isSelected ? "bg-gradient-to-r from-emerald-600 to-teal-500 text-white shadow-sm" : "bg-zinc-800 text-zinc-400"
+                          isSelected ? "bg-cyan-600 text-white shadow-[0_0_10px_rgba(6,182,212,0.5)]" : "bg-zinc-800 text-zinc-400"
                         }`}
                       >
                         0{s.number}
@@ -586,7 +586,7 @@ export const StudioTab: React.FC<StudioTabProps> = ({
                       <span className="text-xs font-bold text-zinc-200">{s.category} Slide</span>
                     </div>
 
-                    <span className="font-mono text-[11px] text-emerald-400 font-semibold">
+                    <span className="font-mono text-[11px] text-cyan-400 font-semibold">
                       {s.timeRange}
                     </span>
                   </div>

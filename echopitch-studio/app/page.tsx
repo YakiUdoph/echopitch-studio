@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { Header, TabType } from "./components/Header";
 import { WorkspaceControlToolbar } from "./components/WorkspaceControlToolbar";
@@ -33,6 +34,17 @@ export default function Home() {
   const [isExpertMode, setIsExpertMode] = useState<boolean>(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState<boolean>(false);
   const [activePresetName, setActivePresetName] = useState<string>("DeFi Agent");
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+
+  // Mouse tracking ambient spotlight effect
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      setMousePos({ x: e.clientX, y: e.clientY });
+    };
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => window.removeEventListener("mousemove", handleMouseMove);
+  }, []);
+
 
   // Feature 1: Dynamic Pitch Duration state (60s, 90s, 180s)
   const [pitchDuration, setPitchDuration] = useState<PitchDuration>(90);
@@ -266,14 +278,46 @@ export default function Home() {
   const themeObj = THEME_PRESETS[themePreset] || THEME_PRESETS.matrix;
 
   return (
-    <div className={`relative min-h-screen flex flex-col ${themeObj.bgClass} antialiased selection:bg-emerald-500 selection:text-white overflow-x-hidden transition-colors duration-300`}>
-      {/* Ambient Lighting Background Radial Glow */}
+    <div className={`relative min-h-screen flex flex-col bg-zinc-950 bg-cyber-grid antialiased selection:bg-cyan-500 selection:text-white overflow-x-hidden transition-colors duration-300`}>
+      {/* 1. Interactive Mouse-Tracking Cyan Spotlight Ambient Background */}
+      <div
+        className="pointer-events-none fixed inset-0 z-0 transition-opacity duration-300"
+        style={{
+          background: `radial-gradient(700px circle at ${mousePos.x}px ${mousePos.y}px, rgba(6, 182, 212, 0.13), transparent 80%)`
+        }}
+      />
+
+      {/* 2. Top Header Fixed Ambient Lighting Radial Glow */}
       <div
         className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[420px] pointer-events-none z-0 transition-all duration-700"
         style={{
-          background: `radial-gradient(ellipse 80% 80% at 50% -20%, ${themeObj.glowColor}, rgba(255,255,255,0))`
+          background: `radial-gradient(ellipse 80% 80% at 50% -20%, rgba(6, 182, 212, 0.18), rgba(9, 13, 22, 0))`
         }}
       />
+
+      {/* 3. Large Centered Background Watermark Logo with Breathing Pulse Animation */}
+      <div className="pointer-events-none fixed inset-0 z-0 flex items-center justify-center overflow-hidden">
+        <motion.div
+          animate={{
+            scale: [1, 1.06, 1],
+            opacity: [0.035, 0.065, 0.035]
+          }}
+          transition={{
+            duration: 8,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+          className="relative h-[620px] w-[620px] max-w-[85vw] max-h-[85vh] rounded-full overflow-hidden"
+        >
+          <Image
+            src="/logo.jpg"
+            alt="Background Logo Watermark"
+            fill
+            priority
+            className="object-contain filter brightness-125 saturate-150 contrast-125"
+          />
+        </motion.div>
+      </div>
 
       {/* Tier 1: Global Top Navbar */}
       <Header
@@ -285,17 +329,21 @@ export default function Home() {
       />
 
       {/* Hero Header Section */}
-      <section className="relative z-10 w-full max-w-7xl mx-auto px-6 pt-10 pb-4 text-left flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 border-b border-zinc-200 dark:border-zinc-900/80">
+      <section className="relative z-10 w-full max-w-7xl mx-auto px-6 pt-10 pb-4 text-left flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 border-b border-cyan-500/15">
         <motion.div
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
           className="flex flex-col items-start gap-3 max-w-3xl"
         >
-          <h1 className="text-3xl sm:text-5xl font-black tracking-tight bg-gradient-to-b from-zinc-900 via-zinc-800 to-zinc-600 dark:from-white dark:via-zinc-200 dark:to-zinc-500 bg-clip-text text-transparent">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-950/60 border border-cyan-500/30 text-cyan-300 text-xs font-semibold shadow-[0_0_12px_rgba(6,182,212,0.25)]">
+            <Zap className="h-3.5 w-3.5 text-cyan-400 animate-pulse" />
+            <span>Futuristic Speech ASP & Audio Telemetry Studio</span>
+          </div>
+          <h1 className="text-3xl sm:text-5xl font-black tracking-tight bg-gradient-to-r from-white via-cyan-100 to-cyan-300 bg-clip-text text-transparent drop-shadow-[0_0_20px_rgba(6,182,212,0.2)]">
             Turn Any Codebase into High-Impact Pitch Videos
           </h1>
-          <p className="text-sm sm:text-base text-zinc-600 dark:text-zinc-400 font-medium leading-relaxed">
+          <p className="text-sm sm:text-base text-zinc-400 font-medium leading-relaxed">
             Auto-extract GitHub READMEs into interactive slide storyboards, synthetic voiceovers, and agent skill payloads.
           </p>
         </motion.div>
@@ -306,6 +354,7 @@ export default function Home() {
         pitchDuration={pitchDuration}
         onSelectPitchDuration={handleSelectPitchDuration}
         isExpertMode={isExpertMode}
+
         onToggleExpertMode={() => setIsExpertMode(!isExpertMode)}
       />
 

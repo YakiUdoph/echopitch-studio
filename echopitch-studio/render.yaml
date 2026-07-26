@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: echopitch-a2a-daemon
+    runtime: docker
+    dockerfilePath: Dockerfile
+    plan: starter
+    region: oregon
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PORT
+        value: "10000"
+      - key: NODE_ENV
+        value: "production"
+      - key: NEXT_PUBLIC_OKX_AGENT_ID
+        value: "9230"
+      - key: NEXT_PUBLIC_OKX_A2A_SERVICE_ID
+        value: "36961"
+      - key: NEXT_PUBLIC_OKX_CONTRACT_ADDRESS
+        value: "0x779ded0c9e1022225f8e0630b35a9b54be713736"
+      - key: NEXT_PUBLIC_OKX_NETWORK
+        value: "OKX X Layer Mainnet"
+      - key: NEXT_PUBLIC_OKX_CHAIN_ID
+        value: "196"
+      - key: NEXT_PUBLIC_OKX_COMMUNICATION_ADDRESS
+        value: "0x78507f00f3BA4665a505e616ead3211e405fC11e"
+      - key: OKX_AGENT_TASK_HOME
+        value: "/app/data"
+      - key: OKX_A2A_AI_PERMISSION_PRESET
+        value: "auto"
+      - key: XMTP_ENV
+        value: "production"

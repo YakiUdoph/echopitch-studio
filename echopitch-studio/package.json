@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "start:a2a": "node scripts/start-a2a.js",
+    "start:daemon": "node scripts/start-a2a.js",
+    "doctor": "okx-a2a doctor --fix",
     "lint": "eslint"
   },
   "dependencies": {

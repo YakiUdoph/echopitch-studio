@@ -5,8 +5,13 @@
   "description": "EchoPitch AI Studio Agent ID #9230 OKX A2A Node Daemon Service",
   "main": "scripts/start-a2a.js",
   "scripts": {
-    "start": "node scripts/start-a2a.js",
+    "start": "okx-a2a doctor --fix",
     "start:a2a": "node scripts/start-a2a.js",
+    "start:daemon": "node scripts/start-a2a.js",
+    "doctor": "okx-a2a doctor --fix",
+    "pm2:start": "pm2 start ecosystem.config.js",
+    "pm2:logs": "pm2 logs echopitch-node",
+    "pm2:status": "pm2 status",
     "dev": "npm --prefix echopitch-studio run dev",
     "build": "npm --prefix echopitch-studio run build"
   },

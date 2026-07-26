@@ -21,25 +21,32 @@ const startTime = Date.now();
 
 // Helper to resolve okx-a2a cli script or command
 function resolveA2aCli() {
+  const possiblePaths = [
+    path.join(__dirname, '..', 'node_modules', '@okxweb3', 'a2a-node', 'dist', 'cli.js'),
+    path.join(__dirname, 'node_modules', '@okxweb3', 'a2a-node', 'dist', 'cli.js'),
+    'C:/Users/PC/AppData/Roaming/npm/node_modules/@okxweb3/a2a-node/dist/cli.js',
+    '/usr/local/lib/node_modules/@okxweb3/a2a-node/dist/cli.js',
+    '/usr/lib/node_modules/@okxweb3/a2a-node/dist/cli.js'
+  ];
+
   try {
     const pkgPath = require.resolve('@okxweb3/a2a-node/package.json');
     const cliJs = path.join(path.dirname(pkgPath), 'dist', 'cli.js');
     if (fs.existsSync(cliJs)) {
-      return { command: process.execPath, args: [cliJs] };
+      return { command: process.execPath, args: [cliJs], options: {} };
     }
   } catch (e) {
-    const globalPaths = [
-      'C:/Users/PC/AppData/Roaming/npm/node_modules/@okxweb3/a2a-node/dist/cli.js',
-      '/usr/local/lib/node_modules/@okxweb3/a2a-node/dist/cli.js',
-      '/usr/lib/node_modules/@okxweb3/a2a-node/dist/cli.js'
-    ];
-    for (const p of globalPaths) {
-      if (fs.existsSync(p)) {
-        return { command: process.execPath, args: [p] };
-      }
+    // Ignore require error fallback
+  }
+
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) {
+      return { command: process.execPath, args: [p], options: {} };
     }
   }
-  return { command: 'okx-a2a', args: [] };
+
+  const isWin = process.platform === 'win32';
+  return { command: isWin ? 'okx-a2a.cmd' : 'okx-a2a', args: [], options: { shell: true } };
 }
 
 // Step 1: Start HTTP Health Check Server immediately to pass platform checks
@@ -113,6 +120,7 @@ function startDaemon() {
 
   daemonProcess = spawn(spawnCmd, spawnArgs, {
     stdio: 'pipe',
+    ...(cli.options || {}),
     env: {
       ...process.env,
       OKX_AGENT_TASK_HOME: process.env.OKX_AGENT_TASK_HOME || '/app/data',

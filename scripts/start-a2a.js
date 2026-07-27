@@ -92,7 +92,7 @@ cleanupStaleLockFiles();
 // Step 1: Start HTTP Health Check Server immediately to pass Railway health checks
 const server = http.createServer((req, res) => {
   const url = req.url || '/';
-  
+
   if (url === '/' || url === '/health' || url === '/status') {
     const uptimeSec = Math.floor((Date.now() - startTime) / 1000);
 
@@ -126,7 +126,7 @@ const server = http.createServer((req, res) => {
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`[EchoPitch A2A Daemon] HTTP Health Check Server listening on 0.0.0.0:${PORT}`);
   console.log(`[EchoPitch A2A Daemon] Agent ID #${AGENT_ID} active on Railway.`);
-  
+
   // Begin single background daemon startup after HTTP server is bound
   runDoctorAndDaemon();
 });
@@ -187,7 +187,7 @@ function runDoctorAndDaemon() {
 
   function startDaemon() {
     console.log('[EchoPitch A2A Daemon] Starting A2A daemon process...');
-    const daemonArgs = [...cli.args, 'daemon', 'start'];
+    const daemonArgs = [...cli.args, 'run'];
     const spawnOptions = {
       ...cli.options,
       env: { ...process.env, OKX_AGENT_TASK_HOME: TASK_HOME }
@@ -198,7 +198,7 @@ function runDoctorAndDaemon() {
 
       if (daemonProcess) {
         isDaemonActive = true;
-        console.log('[EchoPitch A2A Daemon] A2A daemon start command executed.');
+        console.log('[EchoPitch A2A Daemon] A2A daemon run command executed.');
         daemonProcess.stdout?.on('data', (data) => console.log(`[A2A Daemon] ${data.toString().trim()}`));
         daemonProcess.stderr?.on('data', (data) => console.warn(`[A2A Daemon ERR] ${data.toString().trim()}`));
 
@@ -209,10 +209,10 @@ function runDoctorAndDaemon() {
 
         daemonProcess.on('exit', (code, signal) => {
           if (code === 0) {
-            console.log(`[EchoPitch A2A Daemon] Daemon start command completed successfully.`);
+            console.log(`[EchoPitch A2A Daemon] Daemon run command completed successfully.`);
             isDaemonActive = true;
           } else {
-            console.warn(`[EchoPitch A2A Daemon] Daemon start command exited with code ${code}, signal ${signal}`);
+            console.warn(`[EchoPitch A2A Daemon] Daemon run command exited with code ${code}, signal ${signal}`);
             isDaemonActive = false;
           }
         });

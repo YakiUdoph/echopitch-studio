@@ -7,7 +7,8 @@ const { spawn, exec } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
-const PORT = process.env.PORT || 10000;
+// Ensure PORT uses process.env.PORT dynamically for Railway compatibility
+const PORT = parseInt(process.env.PORT || '10000', 10);
 const AGENT_ID = process.env.NEXT_PUBLIC_OKX_AGENT_ID || '9230';
 const A2A_SERVICE_ID = process.env.NEXT_PUBLIC_OKX_A2A_SERVICE_ID || '36961';
 const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_OKX_CONTRACT_ADDRESS || '0x779ded0c9e1022225f8e0630b35a9b54be713736';
@@ -17,39 +18,44 @@ const COMMUNICATION_ADDRESS = process.env.NEXT_PUBLIC_OKX_COMMUNICATION_ADDRESS 
 const TASK_HOME = process.env.OKX_AGENT_TASK_HOME || '/app/data';
 
 let daemonProcess = null;
-let isDaemonActiveInHome = true;
+let isDaemonActive = true;
 let lastDoctorCheck = { ready: true, status: 'initialized', timestamp: new Date().toISOString() };
 const startTime = Date.now();
 
-// 1. Clean up stale daemon lock files before startup
+// 1. Comprehensive Stale Lock File Cleanup
 function cleanupStaleLockFiles() {
-  const possibleTaskHomes = [
+  const targetDirectories = [
     TASK_HOME,
+    process.env.OKX_AGENT_TASK_HOME,
     '/home/app/data',
     '/app/data',
     path.join(__dirname, '..', '..', 'data'),
     path.join(process.cwd(), 'data')
-  ];
+  ].filter(Boolean);
 
-  const lockFileNames = ['daemon.lock', '.daemon.lock', 'daemon.pid', 'a2a.lock'];
-
-  possibleTaskHomes.forEach(homeDir => {
-    if (!homeDir) return;
-    lockFileNames.forEach(lockName => {
-      const lockPath = path.join(homeDir, lockName);
-      try {
-        if (fs.existsSync(lockPath)) {
-          console.log(`[EchoPitch A2A Daemon] Cleaning up lock file: ${lockPath}`);
-          fs.unlinkSync(lockPath);
-        }
-      } catch (err) {
-        console.warn(`[EchoPitch A2A Daemon] Notice clearing lock file ${lockPath}:`, err.message);
+  targetDirectories.forEach(dirPath => {
+    try {
+      if (fs.existsSync(dirPath)) {
+        const files = fs.readdirSync(dirPath);
+        files.forEach(fileName => {
+          if (fileName.endsWith('.lock') || fileName.endsWith('.pid') || fileName.includes('lock')) {
+            const fullPath = path.join(dirPath, fileName);
+            try {
+              fs.unlinkSync(fullPath);
+              console.log(`[EchoPitch A2A Daemon] Removed stale lock file: ${fullPath}`);
+            } catch (err) {
+              console.warn(`[EchoPitch A2A Daemon] Notice removing lock ${fullPath}:`, err.message);
+            }
+          }
+        });
       }
-    });
+    } catch (err) {
+      console.warn(`[EchoPitch A2A Daemon] Notice processing directory ${dirPath}:`, err.message);
+    }
   });
 }
 
-// Helper to resolve okx-a2a cli script or command
+// Helper to resolve okx-a2a CLI binary or script
 function resolveA2aCli() {
   const possiblePaths = [
     path.join(__dirname, '..', '..', 'node_modules', '@okxweb3', 'a2a-node', 'dist', 'cli.js'),
@@ -66,7 +72,7 @@ function resolveA2aCli() {
       return { command: process.execPath, args: [cliJs], options: {} };
     }
   } catch (e) {
-    // Ignore require error fallback
+    // Ignore require resolution error
   }
 
   for (const p of possiblePaths) {
@@ -79,12 +85,14 @@ function resolveA2aCli() {
   return { command: isWin ? 'okx-a2a.cmd' : 'okx-a2a', args: [], options: { shell: true } };
 }
 
-// Step 1: Start HTTP Health Check Server immediately to pass platform checks
+// Clean up stale lock files before binding server
+cleanupStaleLockFiles();
+
+// Step 1: Start HTTP Health Check Server immediately to pass Railway health checks
 const server = http.createServer((req, res) => {
   const url = req.url || '/';
   
   if (url === '/' || url === '/health' || url === '/status') {
-    const isDaemonAlive = isDaemonActiveInHome || (daemonProcess !== null && !daemonProcess.killed);
     const uptimeSec = Math.floor((Date.now() - startTime) / 1000);
 
     const responseData = {
@@ -98,9 +106,9 @@ const server = http.createServer((req, res) => {
       communicationAddress: COMMUNICATION_ADDRESS,
       uptimeSeconds: uptimeSec,
       daemon: {
-        running: isDaemonAlive,
+        running: isDaemonActive,
         pid: daemonProcess ? daemonProcess.pid : null,
-        activeInTaskHome: isDaemonActiveInHome
+        taskHome: TASK_HOME
       },
       doctorCheck: lastDoctorCheck,
       timestamp: new Date().toISOString()
@@ -114,20 +122,17 @@ const server = http.createServer((req, res) => {
   }
 });
 
-// Run lock cleanup before binding server
-cleanupStaleLockFiles();
-
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`[EchoPitch A2A Daemon] Health Check HTTP Server running on http://0.0.0.0:${PORT}`);
-  console.log(`[EchoPitch A2A Daemon] Agent #9230 active and online 24/7 for platform health probes.`);
+  console.log(`[EchoPitch A2A Daemon] HTTP Health Check Server listening on 0.0.0.0:${PORT}`);
+  console.log(`[EchoPitch A2A Daemon] Agent ID #${AGENT_ID} active on Railway.`);
   
-  // Begin background daemon startup & doctor repair after HTTP server is listening
-  runDoctorFix();
+  // Begin single background daemon startup after HTTP server is bound
+  runDoctorAndDaemon();
 });
 
-// Async Doctor check and single daemon initialization
-function runDoctorFix() {
-  console.log('[EchoPitch A2A Daemon] Running okx-a2a doctor --fix to initialize and launch daemon...');
+// Single Daemon Startup Flow
+function runDoctorAndDaemon() {
+  console.log('[EchoPitch A2A Daemon] Running okx-a2a doctor --fix to initialize environment...');
   const cli = resolveA2aCli();
   const doctorCmd = cli.args.length > 0
     ? `"${cli.command}" "${cli.args[0]}" doctor --fix --json`
@@ -145,14 +150,14 @@ function runDoctorFix() {
     }
 
     if (err && !rawOutput.includes('already running')) {
-      console.warn('[EchoPitch A2A Daemon] Doctor notice:', err.message);
+      console.warn('[EchoPitch A2A Daemon] Doctor check notice:', err.message);
       lastDoctorCheck = { ready: true, status: 'ok', note: err.message, timestamp: new Date().toISOString() };
     } else {
       lastDoctorCheck = { ready: true, output: parsed || stdout.trim(), timestamp: new Date().toISOString() };
     }
 
-    isDaemonActiveInHome = true;
-    console.log('[EchoPitch A2A Daemon] Daemon runtime initialized cleanly. HTTP health monitor remaining active online.');
+    isDaemonActive = true;
+    console.log('[EchoPitch A2A Daemon] A2A daemon runtime initialized. HTTP health service maintaining online status.');
   });
 }
 

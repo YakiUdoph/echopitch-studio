@@ -28,8 +28,7 @@ RUN npm install --omit=dev || npm install
 COPY . .
 
 # Set default environment variables for EchoPitch Studio (Agent ID #9230)
-ENV PORT=10000 \
-    NODE_ENV=production \
+ENV NODE_ENV=production \
     NEXT_PUBLIC_OKX_AGENT_ID=9230 \
     NEXT_PUBLIC_OKX_A2A_SERVICE_ID=36961 \
     NEXT_PUBLIC_OKX_CONTRACT_ADDRESS=0x779ded0c9e1022225f8e0630b35a9b54be713736 \
@@ -40,12 +39,12 @@ ENV PORT=10000 \
     OKX_A2A_AI_PERMISSION_PRESET=auto \
     XMTP_ENV=production
 
-# Expose Render web service port
+# Expose default port
 EXPOSE 10000
 
 # Healthcheck instruction for container engines
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD curl -f http://localhost:10000/health || exit 1
+  CMD curl -f http://localhost:${PORT:-10000}/health || exit 1
 
 # Start healthy daemon runtime 24/7 with HTTP health check endpoint
 CMD ["node", "scripts/start-a2a.js"]

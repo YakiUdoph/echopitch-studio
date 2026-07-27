@@ -132,33 +132,36 @@ server.listen(PORT, '0.0.0.0', () => {
 
 // Single Daemon Startup Flow
 function runDoctorAndDaemon() {
-  console.log('[EchoPitch A2A Daemon] Running okx-a2a doctor --fix to initialize environment...');
+  console.log('[EchoPitch A2A Daemon] Starting OKX A2A runtime...');
+
   const cli = resolveA2aCli();
-  const doctorCmd = cli.args.length > 0
-    ? `"${cli.command}" "${cli.args[0]}" doctor --json`
-    : 'okx-a2a doctor --json';
 
-  exec(doctorCmd, { env: { ...process.env, OKX_AGENT_TASK_HOME: TASK_HOME } }, (err, stdout, stderr) => {
-    const rawOutput = (stdout || '') + ' ' + (stderr || '');
-    console.log('[EchoPitch A2A Daemon] Doctor output:', stdout ? stdout.trim() : (stderr || 'OK'));
-
-    let parsed = null;
-    try {
-      parsed = JSON.parse(stdout);
-    } catch {
-      // Non-JSON output fallback
+  daemonProcess = spawn(
+    cli.command,
+    cli.args,
+    {
+      env: {
+        ...process.env,
+        OKX_AGENT_TASK_HOME: TASK_HOME
+      },
+      stdio: 'inherit',
+      shell: true
     }
+  );
 
-    if (err && !rawOutput.includes('already running')) {
-      console.warn('[EchoPitch A2A Daemon] Doctor check notice:', err.message);
-      lastDoctorCheck = { ready: true, status: 'ok', note: err.message, timestamp: new Date().toISOString() };
-    } else {
-      lastDoctorCheck = { ready: true, output: parsed || stdout.trim(), timestamp: new Date().toISOString() };
-    }
-
-    isDaemonActive = true;
-    console.log('[EchoPitch A2A Daemon] A2A daemon runtime initialized. HTTP health service maintaining online status.');
+  daemonProcess.on('error', (err) => {
+    console.error('[EchoPitch A2A Daemon] Failed to start:', err.message);
+    isDaemonActive = false;
   });
+
+  daemonProcess.on('exit', (code) => {
+    console.log([EchoPitch A2A Daemon] Exited with code ${code});
+    isDaemonActive = false;
+  });
+
+  isDaemonActive = true;
+
+  console.log('[EchoPitch A2A Daemon] A2A task listener started.');
 }
 
 // Graceful shutdown handling

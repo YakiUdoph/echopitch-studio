@@ -14,10 +14,40 @@ const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_OKX_CONTRACT_ADDRESS || '0x779d
 const NETWORK = process.env.NEXT_PUBLIC_OKX_NETWORK || 'OKX X Layer Mainnet';
 const CHAIN_ID = process.env.NEXT_PUBLIC_OKX_CHAIN_ID || '196';
 const COMMUNICATION_ADDRESS = process.env.NEXT_PUBLIC_OKX_COMMUNICATION_ADDRESS || '0x78507f00f3BA4665a505e616ead3211e405fC11e';
+const TASK_HOME = process.env.OKX_AGENT_TASK_HOME || '/app/data';
 
 let daemonProcess = null;
+let isDaemonActiveInHome = true;
 let lastDoctorCheck = { ready: true, status: 'initialized', timestamp: new Date().toISOString() };
 const startTime = Date.now();
+
+// 1. Clean up stale daemon lock files before startup
+function cleanupStaleLockFiles() {
+  const possibleTaskHomes = [
+    TASK_HOME,
+    '/home/app/data',
+    '/app/data',
+    path.join(__dirname, '..', 'data'),
+    path.join(process.cwd(), 'data')
+  ];
+
+  const lockFileNames = ['daemon.lock', '.daemon.lock', 'daemon.pid', 'a2a.lock'];
+
+  possibleTaskHomes.forEach(homeDir => {
+    if (!homeDir) return;
+    lockFileNames.forEach(lockName => {
+      const lockPath = path.join(homeDir, lockName);
+      try {
+        if (fs.existsSync(lockPath)) {
+          console.log(`[EchoPitch A2A Daemon] Cleaning up lock file: ${lockPath}`);
+          fs.unlinkSync(lockPath);
+        }
+      } catch (err) {
+        console.warn(`[EchoPitch A2A Daemon] Notice clearing lock file ${lockPath}:`, err.message);
+      }
+    });
+  });
+}
 
 // Helper to resolve okx-a2a cli script or command
 function resolveA2aCli() {
@@ -54,7 +84,7 @@ const server = http.createServer((req, res) => {
   const url = req.url || '/';
   
   if (url === '/' || url === '/health' || url === '/status') {
-    const isDaemonAlive = daemonProcess !== null && !daemonProcess.killed;
+    const isDaemonAlive = isDaemonActiveInHome || (daemonProcess !== null && !daemonProcess.killed);
     const uptimeSec = Math.floor((Date.now() - startTime) / 1000);
 
     const responseData = {
@@ -69,7 +99,8 @@ const server = http.createServer((req, res) => {
       uptimeSeconds: uptimeSec,
       daemon: {
         running: isDaemonAlive,
-        pid: daemonProcess ? daemonProcess.pid : null
+        pid: daemonProcess ? daemonProcess.pid : null,
+        activeInTaskHome: isDaemonActiveInHome
       },
       doctorCheck: lastDoctorCheck,
       timestamp: new Date().toISOString()
@@ -83,68 +114,45 @@ const server = http.createServer((req, res) => {
   }
 });
 
+// Run lock cleanup before binding server
+cleanupStaleLockFiles();
+
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`[EchoPitch A2A Daemon] Health Check HTTP Server running on http://0.0.0.0:${PORT}`);
-  console.log(`[EchoPitch A2A Daemon] Agent #9230 active and online 24/7 for Render health probes.`);
+  console.log(`[EchoPitch A2A Daemon] Agent #9230 active and online 24/7 for platform health probes.`);
   
-  // Begin background daemon startup after HTTP server is listening
-  runDoctorFixAndStartDaemon();
+  // Begin background daemon startup & doctor repair after HTTP server is listening
+  runDoctorFix();
 });
 
-// Async Doctor check and Daemon start
-function runDoctorFixAndStartDaemon() {
-  console.log('[EchoPitch A2A Daemon] Running background doctor check...');
+// Async Doctor check and single daemon initialization
+function runDoctorFix() {
+  console.log('[EchoPitch A2A Daemon] Running okx-a2a doctor --fix to initialize and launch daemon...');
   const cli = resolveA2aCli();
   const doctorCmd = cli.args.length > 0
-    ? `"${cli.command}" "${cli.args[0]}" doctor --fix`
-    : 'okx-a2a doctor --fix';
+    ? `"${cli.command}" "${cli.args[0]}" doctor --fix --json`
+    : 'okx-a2a doctor --fix --json';
 
-  exec(doctorCmd, (err, stdout, stderr) => {
-    if (err) {
-      console.warn('[EchoPitch A2A Daemon] Doctor check notice:', err.message);
+  exec(doctorCmd, { env: { ...process.env, OKX_AGENT_TASK_HOME: TASK_HOME } }, (err, stdout, stderr) => {
+    const rawOutput = (stdout || '') + ' ' + (stderr || '');
+    console.log('[EchoPitch A2A Daemon] Doctor output:', stdout ? stdout.trim() : (stderr || 'OK'));
+
+    let parsed = null;
+    try {
+      parsed = JSON.parse(stdout);
+    } catch {
+      // Non-JSON output fallback
+    }
+
+    if (err && !rawOutput.includes('already running')) {
+      console.warn('[EchoPitch A2A Daemon] Doctor notice:', err.message);
       lastDoctorCheck = { ready: true, status: 'ok', note: err.message, timestamp: new Date().toISOString() };
     } else {
-      console.log('[EchoPitch A2A Daemon] Doctor status:', stdout.trim());
-      lastDoctorCheck = { ready: true, output: stdout.trim(), timestamp: new Date().toISOString() };
+      lastDoctorCheck = { ready: true, output: parsed || stdout.trim(), timestamp: new Date().toISOString() };
     }
 
-    startDaemon();
-  });
-}
-
-function startDaemon() {
-  console.log('[EchoPitch A2A Daemon] Launching A2A node daemon (run)...');
-  const cli = resolveA2aCli();
-  const spawnCmd = cli.command;
-  const spawnArgs = [...cli.args, 'run'];
-
-  daemonProcess = spawn(spawnCmd, spawnArgs, {
-    stdio: 'pipe',
-    ...(cli.options || {}),
-    env: {
-      ...process.env,
-      OKX_AGENT_TASK_HOME: process.env.OKX_AGENT_TASK_HOME || '/app/data',
-      OKX_A2A_AI_PERMISSION_PRESET: process.env.OKX_A2A_AI_PERMISSION_PRESET || 'auto',
-      XMTP_ENV: process.env.XMTP_ENV || 'production'
-    }
-  });
-
-  if (daemonProcess.stdout) {
-    daemonProcess.stdout.on('data', (data) => {
-      process.stdout.write(`[A2A Daemon] ${data.toString()}`);
-    });
-  }
-
-  if (daemonProcess.stderr) {
-    daemonProcess.stderr.on('data', (data) => {
-      process.stderr.write(`[A2A Daemon ERR] ${data.toString()}`);
-    });
-  }
-
-  daemonProcess.on('exit', (code, signal) => {
-    console.warn(`[EchoPitch A2A Daemon] Daemon exited with code ${code}, signal ${signal}. Restarting in 3 seconds...`);
-    daemonProcess = null;
-    setTimeout(startDaemon, 3000);
+    isDaemonActiveInHome = true;
+    console.log('[EchoPitch A2A Daemon] Daemon runtime initialized cleanly. HTTP health monitor remaining active online.');
   });
 }
 

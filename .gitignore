@@ -1,0 +1,38 @@
+# Node & Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# Build outputs & caches
+.next/
+dist/
+out/
+build/
+*.tsbuildinfo
+
+# OKX A2A Task Home Data & Private Identity Keys
+/data
+data/
+/app/data
+*.lock
+*.pid
+daemon.lock
+.daemon.lock
+
+# Logs
+logs/
+*.log
+
+# Environment & Secrets
+.env
+.env*.local
+.env.production
+.env.staging
+
+# OS & IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

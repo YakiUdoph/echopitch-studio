@@ -18,6 +18,7 @@ const COMMUNICATION_ADDRESS = process.env.NEXT_PUBLIC_OKX_COMMUNICATION_ADDRESS 
 const TASK_HOME = process.env.OKX_AGENT_TASK_HOME || '/app/data';
 
 let daemonProcess = null;
+let watcherProcess = null;
 let isDaemonActive = true;
 let lastDoctorCheck = { ready: true, status: 'initialized', timestamp: new Date().toISOString() };
 const startTime = Date.now();
@@ -130,6 +131,52 @@ server.listen(PORT, '0.0.0.0', () => {
   runDoctorAndDaemon();
 });
 
+// Task Watcher Loop for Continuous Bazaar Task Listening
+function startTaskWatcher() {
+  console.log('[EchoPitch A2A Daemon] Starting continuous task watcher (okx-a2a user watch)...');
+  const cli = resolveA2aCli();
+  const watchArgs = [...cli.args, 'user', 'watch', '--json'];
+  const spawnOptions = {
+    ...cli.options,
+    env: { ...process.env, OKX_AGENT_TASK_HOME: TASK_HOME }
+  };
+
+  try {
+    watcherProcess = spawn(cli.command, watchArgs, spawnOptions);
+    isDaemonActive = true;
+
+    watcherProcess.stdout?.on('data', (data) => {
+      const output = data.toString().trim();
+      if (output) {
+        console.log(`[A2A Watcher] ${output}`);
+      }
+    });
+
+    watcherProcess.stderr?.on('data', (data) => {
+      const errOutput = data.toString().trim();
+      if (errOutput) {
+        console.warn(`[A2A Watcher ERR] ${errOutput}`);
+      }
+    });
+
+    watcherProcess.on('error', (err) => {
+      console.error('[EchoPitch A2A Daemon] Task watcher process error:', err.message);
+    });
+
+    watcherProcess.on('exit', (code, signal) => {
+      console.warn(`[EchoPitch A2A Daemon] Task watcher exited (code ${code}, signal ${signal}). Restarting watcher in 3s...`);
+      setTimeout(() => {
+        startTaskWatcher();
+      }, 3000);
+    });
+  } catch (err) {
+    console.error('[EchoPitch A2A Daemon] Failed to start task watcher:', err.message);
+    setTimeout(() => {
+      startTaskWatcher();
+    }, 5000);
+  }
+}
+
 // Single Daemon Startup Flow
 function runDoctorAndDaemon() {
   console.log('[EchoPitch A2A Daemon] Running okx-a2a doctor --fix to initialize environment...');
@@ -151,7 +198,7 @@ function runDoctorAndDaemon() {
 
       if (daemonProcess) {
         isDaemonActive = true;
-        console.log('[EchoPitch A2A Daemon] A2A daemon started successfully.');
+        console.log('[EchoPitch A2A Daemon] A2A daemon start command executed.');
         daemonProcess.stdout?.on('data', (data) => console.log(`[A2A Daemon] ${data.toString().trim()}`));
         daemonProcess.stderr?.on('data', (data) => console.warn(`[A2A Daemon ERR] ${data.toString().trim()}`));
 
@@ -161,8 +208,13 @@ function runDoctorAndDaemon() {
         });
 
         daemonProcess.on('exit', (code, signal) => {
-          console.warn(`[EchoPitch A2A Daemon] Daemon process exited with code ${code}, signal ${signal}`);
-          isDaemonActive = false;
+          if (code === 0) {
+            console.log(`[EchoPitch A2A Daemon] Daemon start command completed successfully.`);
+            isDaemonActive = true;
+          } else {
+            console.warn(`[EchoPitch A2A Daemon] Daemon start command exited with code ${code}, signal ${signal}`);
+            isDaemonActive = false;
+          }
         });
       }
     } catch (spawnErr) {
@@ -170,7 +222,10 @@ function runDoctorAndDaemon() {
       isDaemonActive = false;
     }
 
-    console.log('[EchoPitch A2A Daemon] A2A daemon runtime initialized. HTTP health service maintaining online status.');
+    // Launch continuous task watcher loop
+    startTaskWatcher();
+
+    console.log('[EchoPitch A2A Daemon] A2A daemon runtime initialized. Task watcher worker and HTTP health service active.');
   }
 
   try {
@@ -211,8 +266,11 @@ process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
 
 function shutdown() {
-  console.log('[EchoPitch A2A Daemon] Received shutdown signal. Closing HTTP server and terminating daemon...');
+  console.log('[EchoPitch A2A Daemon] Received shutdown signal. Closing HTTP server and terminating processes...');
   server.close(() => {
+    if (watcherProcess) {
+      watcherProcess.kill('SIGTERM');
+    }
     if (daemonProcess) {
       daemonProcess.kill('SIGTERM');
     }

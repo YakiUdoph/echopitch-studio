@@ -135,8 +135,8 @@ function runDoctorAndDaemon() {
   console.log('[EchoPitch A2A Daemon] Running okx-a2a doctor --fix to initialize environment...');
   const cli = resolveA2aCli();
   const doctorCmd = cli.args.length > 0
-    ? `"${cli.command}" "${cli.args[0]}" doctor --fix --json`
-    : 'okx-a2a doctor --fix --json';
+    ? `"${cli.command}" "${cli.args[0]}" doctor --json`
+    : 'okx-a2a doctor --json';
 
   exec(doctorCmd, { env: { ...process.env, OKX_AGENT_TASK_HOME: TASK_HOME } }, (err, stdout, stderr) => {
     const rawOutput = (stdout || '') + ' ' + (stderr || '');

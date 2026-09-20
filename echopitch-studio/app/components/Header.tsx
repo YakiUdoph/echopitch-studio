@@ -7,14 +7,13 @@ import { ThemePreset } from "../lib/mockData";
 import {
   Layers,
   FileText,
-  Cpu,
   Share2,
   Sun,
   Moon,
   Palette
 } from "lucide-react";
 
-export type TabType = "studio" | "script" | "asp";
+export type TabType = "studio" | "script";
 
 interface HeaderProps {
   activeTab: TabType;
@@ -88,18 +87,6 @@ export const Header: React.FC<HeaderProps> = ({
             <span>Pitch Deck</span>
           </button>
 
-          <button
-            onClick={() => setActiveTab("asp")}
-            className={`flex items-center gap-2 rounded-lg px-4 py-1.5 text-xs font-bold transition-all duration-200 cursor-pointer ${
-              activeTab === "asp"
-                ? "bg-cyan-950/70 text-cyan-200 shadow-[0_0_12px_rgba(6,182,212,0.4)] border border-cyan-400/40"
-                : "text-zinc-400 hover:text-cyan-200 hover:bg-zinc-800/50"
-            }`}
-          >
-            <Cpu className={`h-3.5 w-3.5 ${activeTab === "asp" ? "text-cyan-400 drop-shadow-[0_0_6px_rgba(6,182,212,0.8)]" : "text-zinc-400"}`} />
-            <span>ASP Spec</span>
-            <span className="flex h-1.5 w-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(6,182,212,0.9)] animate-pulse"></span>
-          </button>
         </nav>
 
         {/* Right: Theme Dropdown Selector + Light/Dark Toggle + Export Assets CTA */}
@@ -112,7 +99,7 @@ export const Header: React.FC<HeaderProps> = ({
               onChange={(e) => onSelectThemePreset(e.target.value as ThemePreset)}
               className="bg-transparent text-xs font-semibold text-zinc-200 focus:outline-none cursor-pointer"
             >
-              <option value="matrix" className="bg-zinc-900 text-zinc-200">OKX Matrix</option>
+              <option value="matrix" className="bg-zinc-900 text-zinc-200">Matrix Green</option>
               <option value="cyberpunk" className="bg-zinc-900 text-zinc-200">Cyberpunk Neon</option>
               <option value="gold" className="bg-zinc-900 text-zinc-200">Web3 Gold</option>
               <option value="terminal" className="bg-zinc-900 text-zinc-200">Dev Terminal</option>

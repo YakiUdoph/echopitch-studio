@@ -1,22 +1,22 @@
 {
-  "name": "echopitch-a2a-daemon",
+  "name": "echopitch-studio-workspace",
   "version": "0.1.0",
   "private": true,
-  "description": "EchoPitch AI Studio Agent ID #9230 OKX A2A Node Daemon Service",
-  "main": "scripts/start-a2a.js",
+  "description": "EchoPitch Studio workspace",
   "scripts": {
-    "start": "node scripts/start-a2a.js",
-    "start:a2a": "node scripts/start-a2a.js",
-    "start:daemon": "node scripts/start-a2a.js",
-    "doctor": "okx-a2a doctor --fix",
-    "pm2:start": "pm2 start ecosystem.config.cjs",
-    "pm2:logs": "pm2 logs echopitch-node",
-    "pm2:status": "pm2 status",
+    "test": "npm --prefix echopitch-studio test",
     "dev": "npm --prefix echopitch-studio run dev",
-    "build": "npm --prefix echopitch-studio run build"
-  },
-  "dependencies": {
-    "@okxweb3/a2a-node": "^0.1.10"
+    "build": "npm --prefix echopitch-studio run build",
+    "lint": "npm --prefix echopitch-studio run lint",
+    "typecheck": "npm --prefix echopitch-studio run typecheck",
+    "test:intelligence": "npm --prefix echopitch-studio run test:intelligence",
+    "test:intelligence:live": "npm --prefix echopitch-studio run test:intelligence:live",
+    "test:production": "npm --prefix echopitch-studio run test:production",
+    "test:production:live": "npm --prefix echopitch-studio run test:production:live",
+    "test:livepeer": "npm --prefix echopitch-studio run test:livepeer",
+    "test:phase-e": "npm --prefix echopitch-studio run test:phase-e",
+    "test:phase-f:tts": "npm --prefix echopitch-studio run test:phase-f:tts",
+    "test:phase-f:foreign": "npm --prefix echopitch-studio run test:phase-f:foreign"
   },
   "engines": {
     "node": ">=22.14.0"

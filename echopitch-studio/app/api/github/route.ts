@@ -2,14 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
   try {
-    let body: any = {};
+    let body: unknown = {};
     try {
       body = await req.json();
     } catch {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    const { githubUrl } = body;
+    const githubUrl = typeof body === "object" && body !== null && "githubUrl" in body
+      ? (body as { githubUrl?: unknown }).githubUrl
+      : undefined;
     if (!githubUrl || typeof githubUrl !== "string") {
       return NextResponse.json({ error: "Missing githubUrl parameter" }, { status: 400 });
     }
@@ -37,7 +39,7 @@ export async function POST(req: NextRequest) {
           owner,
           repo,
           message: "Could not fetch README.md directly from main or master branch. Provided fallback template.",
-          readmeText: `# ${repo.toUpperCase()}\n\n## Problem Statement\nHigh complexity and manual friction in Web3 operations.\n\n## Solution & Architecture\nAutonomous AI Agent deployed on OKX X Layer using OKX ASP Skill Packages for sub-second execution.\n\n## Call to Action\nDeploy ${repo} on OKX.AI Marketplace!`
+          readmeText: `# ${repo.toUpperCase()}\n\n## Problem Statement\nComplex products are difficult to explain clearly in a short demo.\n\n## Solution & Architecture\nEchoPitch turns repository context into a structured storyboard, timed narration, and exportable pitch assets.\n\n## Call to Action\nCreate a concise, high-impact demo for ${repo}.`
         },
         { status: 200 }
       );
@@ -55,9 +57,9 @@ export async function POST(req: NextRequest) {
       },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { error: "Failed to fetch GitHub README", details: error.message },
+      { error: "Failed to fetch GitHub README", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }

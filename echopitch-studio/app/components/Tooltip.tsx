@@ -13,8 +13,8 @@ export const Tooltip: React.FC<TooltipProps> = ({ termKey, children }) => {
   const [isOpen, setIsOpen] = useState(false);
   const data: JargonTooltip | undefined = JargonTooltipsMap[termKey as keyof typeof JargonTooltipsMap] || {
     term: String(termKey),
-    plainEnglish: "OKX.AI Technical Concept",
-    technicalDetails: "Standardized specification component for X Layer agent execution."
+    plainEnglish: "EchoPitch Technical Concept",
+    technicalDetails: "A structured specification used by a media-generation workflow."
   };
 
   return (

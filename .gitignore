@@ -12,7 +12,7 @@ out/
 build/
 *.tsbuildinfo
 
-# OKX A2A Task Home Data & Private Identity Keys
+# Local task data and private identity keys
 /data
 data/
 /app/data

@@ -1,20 +1,16 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Slide, ScriptItem, VoiceProfile, MOCK_VOICE_PROFILES } from "../lib/mockData";
+import { Slide, VoiceProfile, MOCK_VOICE_PROFILES } from "../lib/mockData";
 import { Tooltip } from "./Tooltip";
 import {
-  FileCode,
-  GitBranch,
   Play,
   Pause,
   RotateCcw,
   Sparkles,
-  Zap,
   Video,
   ChevronDown,
   ChevronUp,
-  Cpu,
   Code2,
   Disc,
   Edit3,
@@ -42,8 +38,6 @@ interface StudioTabProps {
   onSelectVoice: (voice: VoiceProfile) => void;
   playbackSpeed: number;
   onChangeSpeed: (speed: number) => void;
-  speechCharIndex?: number;
-  speechCharTotal?: number;
   pitchDuration?: number;
   onFetchGithubRepo?: (url: string) => void;
 }
@@ -69,12 +63,9 @@ export const StudioTab: React.FC<StudioTabProps> = ({
   onSelectVoice,
   playbackSpeed,
   onChangeSpeed,
-  speechCharIndex = 0,
-  speechCharTotal = 140,
   pitchDuration = 90,
   onFetchGithubRepo
 }) => {
-  const [inputMode, setInputMode] = useState<"github" | "paste">("paste");
   const [isSourceMarkdownOpen, setIsSourceMarkdownOpen] = useState<boolean>(false);
   const [isRecordingEnabled, setIsRecordingEnabled] = useState<boolean>(false);
   const [isInlineEditing, setIsInlineEditing] = useState<boolean>(false);
@@ -115,7 +106,7 @@ export const StudioTab: React.FC<StudioTabProps> = ({
     } else if (!isPlaying && mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       mediaRecorderRef.current.stop();
     }
-  }, [isPlaying, isRecordingEnabled]);
+  }, [isPlaying, isRecordingEnabled, currentSlide.title]);
 
   // Render live slide frame onto canvasRef for recording
   useEffect(() => {
@@ -300,12 +291,12 @@ export const StudioTab: React.FC<StudioTabProps> = ({
             </button>
             <button
               onClick={() => {
-                onUpdateGithubUrl("https://github.com/echopitch/neurogrid-asp");
-                if (onFetchGithubRepo) onFetchGithubRepo("https://github.com/echopitch/neurogrid-asp");
+                onUpdateGithubUrl("https://github.com/livepeer/livepeerjs");
+                if (onFetchGithubRepo) onFetchGithubRepo("https://github.com/livepeer/livepeerjs");
               }}
               className="rounded-lg bg-zinc-900 px-2.5 py-1 font-mono text-[11px] font-semibold text-cyan-400 border border-cyan-500/30 hover:border-cyan-400 hover:shadow-[0_0_10px_rgba(6,182,212,0.4)] transition-all cursor-pointer"
             >
-              🚀 NeuroGrid ASP
+              🚀 SceneFlow
             </button>
             <button
               onClick={() => {

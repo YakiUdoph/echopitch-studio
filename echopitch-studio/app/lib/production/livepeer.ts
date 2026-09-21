@@ -5,7 +5,6 @@ type JsonObject = Record<string, unknown>;
 
 export interface LivepeerClientOptions {
   endpoint?: string;
-  apiKey?: string;
   pollIntervalMs?: number;
   timeoutMs?: number;
 }
@@ -14,14 +13,12 @@ export class LivepeerMcpClient implements GenerationExecutor {
   private sessionId?: string;
   private initialized = false;
   private readonly endpoint: string;
-  private readonly apiKey?: string;
   private readonly pollIntervalMs: number;
   private readonly timeoutMs: number;
   private availableCapabilities?: Set<string>;
 
   constructor(options: LivepeerClientOptions = {}) {
     this.endpoint = options.endpoint || process.env.LIVEPEER_MCP_URL || "https://agent.livepeer.org/api/mcp";
-    this.apiKey = options.apiKey || process.env.LIVEPEER_API_KEY;
     this.pollIntervalMs = options.pollIntervalMs || numberEnv("LIVEPEER_POLL_INTERVAL_MS", 5_000);
     this.timeoutMs = options.timeoutMs || numberEnv("LIVEPEER_TIMEOUT_MS", 10 * 60_000);
   }
@@ -108,7 +105,7 @@ export class LivepeerMcpClient implements GenerationExecutor {
     if (!response.ok) throw new Error(`Livepeer MCP ${method} failed: HTTP ${response.status} ${raw}`);
     return parseMcpResponse(raw, response.headers.get("content-type"));
   }
-  private headers(): Record<string, string> { return { "content-type": "application/json", accept: "application/json, text/event-stream", ...(this.sessionId ? { "mcp-session-id": this.sessionId } : {}), ...(this.apiKey ? { authorization: `Bearer ${this.apiKey}` } : {}) }; }
+  private headers(): Record<string, string> { return { "content-type": "application/json", accept: "application/json, text/event-stream", ...(this.sessionId ? { "mcp-session-id": this.sessionId } : {}) }; }
   private capture(response: Response) { this.sessionId = response.headers.get("mcp-session-id") || this.sessionId; }
 }
 

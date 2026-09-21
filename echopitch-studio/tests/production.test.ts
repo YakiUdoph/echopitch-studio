@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { assemblePitch, assertToolSuccess, createMediaPlan, createProductionReceipt, createRepairPlan, directManifest, evaluateScene, extractOutputReference, parseMcpResponse, produceScene, SequenceExecutor } from "../app/lib/production/index.ts";
+import { assemblePitch, assertToolSuccess, createMediaPlan, createProductionReceipt, createRepairPlan, directManifest, evaluateScene, extractOutputReference, LivepeerMcpClient, parseMcpResponse, produceScene, SequenceExecutor } from "../app/lib/production/index.ts";
 import type { ProductionContext, ProductionInstruction } from "../app/lib/production/types.ts";
 
 const context: ProductionContext = {
@@ -62,6 +62,46 @@ test("Livepeer parser handles JSON, SSE, malformed results, outputs, and failed 
   assert.throws(() => parseMcpResponse("not-json", "application/json"), /Malformed Livepeer/);
   assert.equal(extractOutputReference({ result: { structuredContent: { output_url: "https://example.com/art.png" } } }), "https://example.com/art.png");
   assert.throws(() => assertToolSuccess({ result: { isError: true, content: [{ text: "job failed" }] } }, "job"), /job failed/);
+});
+
+test("Livepeer MCP initializes and calls tools without authorization", async () => {
+  const originalFetch = globalThis.fetch;
+  const requests: Array<{ method: string; tool?: string; authorization: string | null }> = [];
+  globalThis.fetch = async (_input, init) => {
+    const request = JSON.parse(String(init?.body)) as { id?: string; method: string; params?: { name?: string } };
+    const headers = new Headers(init?.headers);
+    requests.push({ method: request.method, tool: request.params?.name, authorization: headers.get("authorization") });
+    if (request.method === "initialize") {
+      return Response.json({ jsonrpc: "2.0", id: request.id, result: {} }, { headers: { "mcp-session-id": "keyless-test-session" } });
+    }
+    if (request.method === "notifications/initialized") return new Response(null, { status: 202 });
+    if (request.method === "tools/call" && request.params?.name === "list_capabilities") {
+      return Response.json({ jsonrpc: "2.0", id: request.id, result: { structuredContent: { capabilities: [{ name: "flux-schnell" }] } } });
+    }
+    if (request.method === "tools/call" && request.params?.name === "run_capability") {
+      return Response.json({ jsonrpc: "2.0", id: request.id, result: { structuredContent: { output_url: "https://example.com/keyless.png" } } });
+    }
+    return Response.json({ jsonrpc: "2.0", id: request.id, error: { message: "Unexpected test request" } }, { status: 500 });
+  };
+
+  try {
+    const client = new LivepeerMcpClient({ endpoint: "https://example.test/api/mcp" });
+    const result = await client.generate({
+      sceneId: "keyless-test", mediaSource: "livepeer-generated", mediaType: "image", requestedCapability: "flux-schnell",
+      prompt: "Verify keyless transport", claimIds: [], evidenceIds: [], continuity: "Test only."
+    });
+    assert.equal(result.status, "completed", result.error);
+    assert.equal(result.outputReference, "https://example.com/keyless.png");
+    assert.deepEqual(requests.map(({ method, tool }) => ({ method, tool })), [
+      { method: "initialize", tool: undefined },
+      { method: "notifications/initialized", tool: undefined },
+      { method: "tools/call", tool: "list_capabilities" },
+      { method: "tools/call", tool: "run_capability" }
+    ]);
+    assert.ok(requests.every((request) => request.authorization === null));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test("Critic rejects invalid artifacts, preserves provenance, and creates a bounded repair plan", async () => {

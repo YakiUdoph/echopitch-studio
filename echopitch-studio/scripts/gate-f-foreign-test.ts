@@ -72,7 +72,11 @@ async function main() {
     }
     console.log("[phase-f] producing narration");
     const narration = await produceNarration(context, client);
-    if (narration.status === "generated" && narration.outputReference) assetChecks.push({ sceneId: "narration", contentType: await verifyAsset(narration.outputReference, "audio") });
+    if (narration.status === "generated") {
+      const references = narration.segments?.map((segment) => ({ sceneId: segment.sceneId, reference: segment.outputReference })).filter((item): item is { sceneId: string; reference: string } => Boolean(item.reference))
+        ?? (narration.outputReference ? [{ sceneId: "narration", reference: narration.outputReference }] : []);
+      for (const item of references) assetChecks.push({ sceneId: `narration-${item.sceneId}`, contentType: await verifyAsset(item.reference, "audio") });
+    }
     const resultDirectory = path.join(process.cwd(), ".data", "reliability");
     const artifactPath = path.join(resultDirectory, "foreign-final-pitch.html");
     const { assembly, html } = assemblePitch(context, mediaPlan, productions, narration, artifactPath);

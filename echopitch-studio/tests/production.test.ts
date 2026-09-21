@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { assemblePitch, assertToolSuccess, createMediaPlan, createProductionReceipt, createRepairPlan, directManifest, evaluateScene, extractOutputReference, LivepeerMcpClient, parseMcpResponse, produceScene, SequenceExecutor } from "../app/lib/production/index.ts";
-import type { ProductionContext, ProductionInstruction } from "../app/lib/production/types.ts";
+import { assemblePitch, assertToolSuccess, createMediaPlan, createProductionReceipt, createRepairPlan, directManifest, evaluateScene, extractOutputReference, LivepeerMcpClient, parseMcpResponse, produceNarration, produceScene, SequenceExecutor } from "../app/lib/production/index.ts";
+import type { GenerationExecutor, LivepeerGenerationResult, ProductionContext, ProductionInstruction } from "../app/lib/production/types.ts";
 
 const context: ProductionContext = {
   intelligence: {
@@ -54,6 +54,66 @@ test("Final Assembler preserves scene order, duration, visuals, and honest narra
   assert.equal(result.assembly.narrationAudioStatus, "on-screen-copy-only");
   assert.match(result.html, /Verified repository evidence/);
   assert.match(result.html, /https:\/\/example.com\/diagram.png/);
+});
+
+test("scene narration covers the complete 60-second manifest and is synchronized at scene boundaries", async () => {
+  const sixtySecondContext: ProductionContext = {
+    ...context,
+    manifest: {
+      ...context.manifest,
+      targetDuration: 60,
+      scenes: [
+        { ...context.manifest.scenes[0], sceneId: "scene-1", duration: 15, narration: "Opening narration." },
+        { ...context.manifest.scenes[0], sceneId: "scene-2", duration: 15, narration: "Capability narration." },
+        { ...context.manifest.scenes[0], sceneId: "scene-3", duration: 15, narration: "Architecture narration." },
+        { ...context.manifest.scenes[0], sceneId: "scene-4", duration: 15, narration: "Closing narration." }
+      ]
+    }
+  };
+  const executor = new RecordingExecutor([1, 2, 3, 4].map((number) => ({
+    sceneId: `narration-scene-${number}`, requestedCapability: "gemini-tts", executedCapability: "gemini-tts",
+    prompt: "", outputReference: `https://example.com/scene-${number}.mp3`, latencyMs: number, status: "completed" as const
+  })));
+  const narration = await produceNarration(sixtySecondContext, executor);
+  assert.deepEqual(executor.prompts, ["Opening narration.", "Capability narration.", "Architecture narration.", "Closing narration."]);
+  assert.equal(narration.status, "generated");
+  assert.deepEqual(narration.segments?.map((segment) => segment.sceneId), ["scene-1", "scene-2", "scene-3", "scene-4"]);
+
+  const mediaPlan = createMediaPlan(sixtySecondContext);
+  const productions = await Promise.all(directManifest(sixtySecondContext, mediaPlan).map((instruction) => produceScene(sixtySecondContext, instruction, new SequenceExecutor([]))));
+  const result = assemblePitch(sixtySecondContext, mediaPlan, productions, narration, "/api/runs/test/artifact");
+  assert.equal(result.assembly.duration, 60);
+  assert.equal(result.assembly.narrationAudioStatus, "livepeer-tts-embedded");
+  for (let number = 1; number <= 4; number += 1) assert.match(result.html, new RegExp(`https://example\\.com/scene-${number}\\.mp3`));
+  assert.match(result.html, /sceneAudios/);
+  assert.match(result.html, /t-state\.start/);
+
+  const receipt = createProductionReceipt(sixtySecondContext, productions, result.assembly, narration);
+  assert.equal(receipt.capabilityExecutions.filter((execution) => execution.purpose === "narration").length, 4);
+  assert.equal(receipt.narration.artifactReferences?.length, 4);
+  assert.equal(receipt.totalLivepeerGenerations, 4);
+});
+
+test("incomplete scene narration is not embedded or reported as complete", async () => {
+  const executor = new RecordingExecutor([
+    { sceneId: "narration-scene-1", requestedCapability: "gemini-tts", prompt: "", outputReference: "https://example.com/partial.mp3", latencyMs: 1, status: "completed" },
+    { sceneId: "narration-scene-2", requestedCapability: "gemini-tts", prompt: "", latencyMs: 1, status: "failed", error: "TTS failed" }
+  ]);
+  const narration = await produceNarration(context, executor);
+  assert.equal(executor.prompts.length, 2);
+  assert.equal(narration.status, "failed");
+  const mediaPlan = createMediaPlan(context);
+  const instructions = directManifest(context, mediaPlan);
+  const productions = [
+    await produceScene(context, instructions[0], new SequenceExecutor([])),
+    await produceScene(context, instructions[1], new SequenceExecutor([{ sceneId: "scene-2", requestedCapability: "flux-schnell", executedCapability: "flux-schnell", prompt: instructions[1].prompt, outputReference: "https://example.com/diagram.png", latencyMs: 1, status: "completed" }]))
+  ];
+  const result = assemblePitch(context, mediaPlan, productions, narration, "/api/runs/test/artifact");
+  assert.equal(result.assembly.narrationAudioStatus, "on-screen-copy-only");
+  assert.doesNotMatch(result.html, /partial\.mp3/);
+  const falselyCompleted = assemblePitch(context, mediaPlan, productions, { ...narration, method: "livepeer-tts", status: "generated" }, "/api/runs/test/artifact");
+  assert.equal(falselyCompleted.assembly.narrationAudioStatus, "on-screen-copy-only");
+  assert.doesNotMatch(falselyCompleted.html, /partial\.mp3/);
 });
 
 test("Livepeer parser handles JSON, SSE, malformed results, outputs, and failed tools", () => {
@@ -136,3 +196,15 @@ test("Critic accepts valid results and receipt retains attempts, claims, evidenc
   assert.equal(receipt.narration.status, "text-only");
   assert.equal(receipt.narration.audioEmbedded, false);
 });
+
+class RecordingExecutor implements GenerationExecutor {
+  readonly prompts: string[] = [];
+  private readonly results: LivepeerGenerationResult[];
+  constructor(results: LivepeerGenerationResult[]) { this.results = results; }
+  async generate(instruction: ProductionInstruction): Promise<LivepeerGenerationResult> {
+    this.prompts.push(instruction.prompt);
+    const result = this.results.shift();
+    if (!result) throw new Error("No recorded generation result available.");
+    return { ...result, sceneId: instruction.sceneId, prompt: instruction.prompt };
+  }
+}

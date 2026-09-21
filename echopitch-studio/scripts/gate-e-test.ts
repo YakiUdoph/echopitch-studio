@@ -34,7 +34,11 @@ async function main() {
       await verifyRemoteArtifact(production.finalOutputReference!, "image");
     }
     const narration = await produceNarration(context, client);
-    if (narration.status === "generated" && narration.outputReference) await verifyRemoteArtifact(narration.outputReference, "audio");
+    if (narration.status === "generated") {
+      const references = narration.segments?.map((segment) => segment.outputReference).filter((reference): reference is string => Boolean(reference))
+        ?? (narration.outputReference ? [narration.outputReference] : []);
+      for (const reference of references) await verifyRemoteArtifact(reference, "audio");
+    }
     const artifactPath = path.join(process.cwd(), ".data", "e2e", "phase-e-final-pitch.html");
     const { assembly, html } = assemblePitch(context, mediaPlan, productions, narration, artifactPath);
     await mkdir(path.dirname(artifactPath), { recursive: true });

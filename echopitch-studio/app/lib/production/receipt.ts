@@ -27,7 +27,12 @@ export function createProductionReceipt(context: ProductionContext, productions:
     requestedCapability: attempt.result.requestedCapability, executedCapability: attempt.result.executedCapability,
     jobId: attempt.result.jobId, status: attempt.result.status, outputReference: attempt.result.outputReference, substitution: attempt.result.substitution
   })));
-  const narrationExecution = narration.requestedCapability ? [{
+  const narrationExecution = narration.segments?.length ? narration.segments.map((segment) => ({
+    purpose: "narration" as const, sceneId: segment.sceneId, requestedCapability: segment.requestedCapability,
+    executedCapability: segment.executedCapability, jobId: segment.jobId,
+    status: segment.status === "generated" ? "completed" as const : "failed" as const,
+    outputReference: segment.outputReference, substitution: segment.substitution, error: segment.error
+  })) : narration.requestedCapability ? [{
     purpose: "narration" as const, requestedCapability: narration.requestedCapability, executedCapability: narration.executedCapability,
     jobId: narration.jobId, status: narration.status === "generated" ? "completed" as const : "failed" as const,
     outputReference: narration.outputReference, substitution: narration.substitution, error: narration.error
@@ -46,8 +51,10 @@ export function createProductionReceipt(context: ProductionContext, productions:
       requestedCapability: narration.requestedCapability,
       executedCapability: narration.executedCapability,
       artifactReference: narration.outputReference,
+      artifactReferences: narration.segments?.map((segment) => segment.outputReference).filter((reference): reference is string => Boolean(reference)),
       status: narration.status,
       audioEmbedded: assembly.narrationAudioStatus === "livepeer-tts-embedded",
+      segments: narration.segments,
       error: narration.error
     }
   };

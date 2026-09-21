@@ -123,10 +123,25 @@ export interface ProductionReceipt {
     requestedCapability?: string;
     executedCapability?: string;
     artifactReference?: string;
+    artifactReferences?: string[];
     status: NarrationProduction["status"];
     audioEmbedded: boolean;
+    segments?: NarrationSegment[];
     error?: string;
   };
+}
+
+export interface NarrationSegment {
+  sceneId: string;
+  narration: string;
+  status: "generated" | "failed";
+  requestedCapability: string;
+  executedCapability?: string;
+  outputReference?: string;
+  jobId?: string;
+  latencyMs: number;
+  error?: string;
+  substitution?: unknown;
 }
 
 export interface NarrationProduction {
@@ -137,6 +152,7 @@ export interface NarrationProduction {
   outputReference?: string;
   jobId?: string;
   latencyMs: number;
+  segments?: NarrationSegment[];
   error?: string;
   substitution?: unknown;
 }

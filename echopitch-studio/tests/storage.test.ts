@@ -32,7 +32,10 @@ const mediaPlan: MediaPlanItem[] = [{
   preferredVisualSource: "repository-evidence-card", mediaType: "evidence-card", productionRationale: "Use repository evidence."
 }];
 const productions: SceneProduction[] = [{ sceneId: "scene-1", mediaSource: "existing-product-evidence", attempts: [], finalVerdict: "WARNING" }];
-const narration: NarrationProduction = { method: "on-screen-copy", status: "text-only", latencyMs: 0 };
+const narration: NarrationProduction = {
+  method: "livepeer-tts", status: "generated", requestedCapability: "gemini-tts", executedCapability: "gemini-tts", latencyMs: 4,
+  segments: [{ sceneId: "scene-1", narration: "Persists verified state.", status: "generated", requestedCapability: "gemini-tts", executedCapability: "gemini-tts", outputReference: "https://example.com/narration-scene-1.mp3", latencyMs: 4 }]
+};
 const intelligenceResult = { intelligence: context.intelligence, claimLock: context.claimLock, storyManifest: context.manifest };
 
 test("filesystem store survives fresh adapter instances and reconstructs the artifact", async () => {
@@ -61,6 +64,8 @@ test("filesystem store survives fresh adapter instances and reconstructs the art
     const html = renderPitchArtifact(restoredContext, artifactRun.mediaPlan, artifactRun.productions, artifactRun.narration);
     assert.match(html, /Durable pitch/);
     assert.match(html, /Persists verified state/);
+    assert.match(html, /https:\/\/example\.com\/narration-scene-1\.mp3/);
+    assert.equal(artifactRun.narration.segments?.[0]?.sceneId, "scene-1");
     assert.equal(html, renderPitchArtifact(restoredContext, artifactRun.mediaPlan, artifactRun.productions, artifactRun.narration));
   } finally {
     await rm(directory, { recursive: true, force: true });

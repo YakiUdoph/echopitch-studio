@@ -8,7 +8,7 @@ import { assemblePitch } from "@/app/lib/production/assembler";
 import { getRun, updateRun } from "@/app/lib/runs/store";
 import type { ProductionContext } from "@/app/lib/production/types";
 
-export const maxDuration = 800;
+export const maxDuration = 300;
 
 export async function POST(_: Request, routeContext: { params: Promise<{ id: string }> }) {
   const { id } = await routeContext.params;

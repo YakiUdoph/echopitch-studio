@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import vm from "node:vm";
 import { assemblePitch, assertToolSuccess, createMediaPlan, createProductionReceipt, createRepairPlan, directManifest, evaluateScene, extractOutputReference, LivepeerMcpClient, parseMcpResponse, produceNarration, produceScene, SequenceExecutor } from "../app/lib/production/index.ts";
 import type { GenerationExecutor, LivepeerGenerationResult, ProductionContext, ProductionInstruction } from "../app/lib/production/types.ts";
 
@@ -57,19 +58,7 @@ test("Final Assembler preserves scene order, duration, visuals, and honest narra
 });
 
 test("scene narration covers the complete 60-second manifest and is synchronized at scene boundaries", async () => {
-  const sixtySecondContext: ProductionContext = {
-    ...context,
-    manifest: {
-      ...context.manifest,
-      targetDuration: 60,
-      scenes: [
-        { ...context.manifest.scenes[0], sceneId: "scene-1", duration: 15, narration: "Opening narration." },
-        { ...context.manifest.scenes[0], sceneId: "scene-2", duration: 15, narration: "Capability narration." },
-        { ...context.manifest.scenes[0], sceneId: "scene-3", duration: 15, narration: "Architecture narration." },
-        { ...context.manifest.scenes[0], sceneId: "scene-4", duration: 15, narration: "Closing narration." }
-      ]
-    }
-  };
+  const sixtySecondContext = createSixtySecondContext();
   const executor = new RecordingExecutor([1, 2, 3, 4].map((number) => ({
     sceneId: `narration-scene-${number}`, requestedCapability: "gemini-tts", executedCapability: "gemini-tts",
     prompt: "", outputReference: `https://example.com/scene-${number}.mp3`, latencyMs: number, status: "completed" as const
@@ -92,6 +81,51 @@ test("scene narration covers the complete 60-second manifest and is synchronized
   assert.equal(receipt.capabilityExecutions.filter((execution) => execution.purpose === "narration").length, 4);
   assert.equal(receipt.narration.artifactReferences?.length, 4);
   assert.equal(receipt.totalLivepeerGenerations, 4);
+});
+
+test("artifact playback controller activates every boundary and supports pause, resume, seek, restart, and rejection reporting", async () => {
+  const sixtySecondContext = createSixtySecondContext();
+  const narration = {
+    method: "livepeer-tts" as const, status: "generated" as const, requestedCapability: "gemini-tts", executedCapability: "gemini-tts", latencyMs: 4,
+    segments: [1, 2, 3, 4].map((number) => ({ sceneId: `scene-${number}`, narration: sixtySecondContext.manifest.scenes[number - 1].narration, status: "generated" as const, requestedCapability: "gemini-tts", outputReference: `https://example.com/scene-${number}.mp3`, latencyMs: 1 }))
+  };
+  const mediaPlan = createMediaPlan(sixtySecondContext);
+  const productions = await Promise.all(directManifest(sixtySecondContext, mediaPlan).map((instruction) => produceScene(sixtySecondContext, instruction, new SequenceExecutor([]))));
+  const { html } = assemblePitch(sixtySecondContext, mediaPlan, productions, narration, "/api/runs/test/artifact");
+  const player = executeArtifact(html);
+
+  await player.clickPlay();
+  assert.deepEqual(player.preparedSources(), [
+    "https://example.com/scene-1.mp3", "https://example.com/scene-2.mp3", "https://example.com/scene-3.mp3", "https://example.com/scene-4.mp3"
+  ]);
+  assert.deepEqual(player.audibleStarts().map((entry) => entry.source), ["https://example.com/scene-1.mp3"]);
+  await player.advanceTo(15);
+  await player.advanceTo(30);
+  await player.advanceTo(45);
+  assert.deepEqual(player.audibleStarts().map((entry) => entry.source), [
+    "https://example.com/scene-1.mp3", "https://example.com/scene-2.mp3", "https://example.com/scene-3.mp3", "https://example.com/scene-4.mp3"
+  ]);
+
+  await player.clickPlay();
+  await player.clickPlay();
+  assert.equal(player.audibleStarts().at(-1)?.source, "https://example.com/scene-4.mp3");
+  player.seek(32);
+  assert.deepEqual(player.audibleStarts().at(-1), { source: "https://example.com/scene-3.mp3", offset: 2 });
+  const startsBeforeEndedOffset = player.audibleStarts().length;
+  player.seek(42);
+  assert.equal(player.audibleStarts().length, startsBeforeEndedOffset);
+  player.seek(16);
+  assert.deepEqual(player.audibleStarts().at(-1), { source: "https://example.com/scene-2.mp3", offset: 1 });
+  player.restart();
+  await player.clickPlay();
+  assert.deepEqual(player.audibleStarts().at(-1), { source: "https://example.com/scene-1.mp3", offset: 0 });
+
+  const rejected = executeArtifact(html, "https://example.com/scene-2.mp3");
+  await rejected.clickPlay();
+  await rejected.advanceTo(15);
+  assert.equal(rejected.audioStatus.hidden, false);
+  assert.match(rejected.audioStatus.textContent, /blocked or could not be loaded/);
+  assert.equal(rejected.errors.length, 1);
 });
 
 test("incomplete scene narration is not embedded or reported as complete", async () => {
@@ -207,4 +241,72 @@ class RecordingExecutor implements GenerationExecutor {
     if (!result) throw new Error("No recorded generation result available.");
     return { ...result, sceneId: instruction.sceneId, prompt: instruction.prompt };
   }
+}
+
+function createSixtySecondContext(): ProductionContext {
+  return {
+    ...context,
+    manifest: {
+      ...context.manifest,
+      targetDuration: 60,
+      scenes: [
+        { ...context.manifest.scenes[0], sceneId: "scene-1", duration: 15, narration: "Opening narration." },
+        { ...context.manifest.scenes[0], sceneId: "scene-2", duration: 15, narration: "Capability narration." },
+        { ...context.manifest.scenes[0], sceneId: "scene-3", duration: 15, narration: "Architecture narration." },
+        { ...context.manifest.scenes[0], sceneId: "scene-4", duration: 15, narration: "Closing narration." }
+      ]
+    }
+  };
+}
+
+function executeArtifact(html: string, rejectOnSecondPlay?: string) {
+  const script = html.match(/<script>([\s\S]*)<\/script>/)?.[1];
+  assert.ok(script, "Generated artifact must contain its playback script.");
+  let now = 0;
+  let animationFrame: (() => void) | undefined;
+  const starts: Array<{ source: string; offset: number; volume: number }> = [];
+  const errors: unknown[][] = [];
+  const nodes = Array.from({ length: 4 }, () => ({ classList: { toggle() {} }, querySelector() { return null; } }));
+  const elements: Record<string, Record<string, unknown>> = {
+    stage: { innerHTML: "", querySelectorAll: () => nodes },
+    seek: { value: "0" }, time: { textContent: "" }, play: { textContent: "Play", disabled: false }, restart: {},
+    "audio-status": { hidden: true, textContent: "" }
+  };
+  class FakeAudio {
+    readonly source: string;
+    currentTime = 0;
+    duration = 10;
+    volume = 1;
+    preload = "";
+    playCount = 0;
+    private readonly listeners = new Map<string, Array<() => void>>();
+    constructor(source: string) { this.source = source; }
+    load() {}
+    pause() {}
+    addEventListener(name: string, listener: () => void) { this.listeners.set(name, [...(this.listeners.get(name) || []), listener]); }
+    play() {
+      this.playCount += 1;
+      starts.push({ source: this.source, offset: this.currentTime, volume: this.volume });
+      if (this.source === rejectOnSecondPlay && this.playCount === 2) return Promise.reject(new Error("NotAllowedError"));
+      return Promise.resolve();
+    }
+  }
+  vm.runInNewContext(script, {
+    Audio: FakeAudio,
+    document: { getElementById: (id: string) => elements[id] },
+    performance: { now: () => now },
+    requestAnimationFrame: (callback: () => void) => { animationFrame = callback; return 1; },
+    cancelAnimationFrame: () => { animationFrame = undefined; },
+    console: { debug() {}, error: (...args: unknown[]) => errors.push(args) }
+  });
+  const flush = async () => { await Promise.resolve(); await Promise.resolve(); };
+  return {
+    audioStatus: elements["audio-status"] as { hidden: boolean; textContent: string }, errors,
+    preparedSources: () => starts.filter((entry) => entry.volume === 0).map((entry) => entry.source),
+    audibleStarts: () => starts.filter((entry) => entry.volume === 1).map(({ source, offset }) => ({ source, offset })),
+    async clickPlay() { await (elements.play.onclick as () => Promise<void>)(); await flush(); },
+    async advanceTo(seconds: number) { now = seconds * 1000; assert.ok(animationFrame, "Playback should have a scheduled animation frame."); animationFrame(); await flush(); },
+    seek(seconds: number) { elements.seek.value = String(seconds); (elements.seek.oninput as () => void)(); },
+    restart() { (elements.restart.onclick as () => void)(); }
+  };
 }

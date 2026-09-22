@@ -1,6 +1,20 @@
 import type { ClaimLockResult, RecommendedMediaType, RepositoryIntelligence, StoryManifest, StoryScene, VerifiedClaim } from "./types.ts";
 
-const purposes = ["Establish the product", "Show verified capability", "Explain implementation", "Close on evidenced value"];
+const goalPurposes: Record<string, string[]> = {
+  "Product overview": ["Establish the product", "Show a verified capability", "Explain the implementation", "Close on evidenced value"],
+  "Hackathon pitch": ["Frame the verified product", "Demonstrate shipped capability", "Explain technical execution", "Close with implementation evidence"],
+  "Investor pitch": ["Establish the verified product", "Show evidenced product value", "Explain the implementation foundation", "Close with verified differentiation"],
+  "Technical walkthrough": ["Define the verified system", "Inspect an implemented capability", "Trace the technical mechanism", "Summarize engineering evidence"],
+  "Customer demo": ["Introduce the verified product", "Demonstrate a user-facing capability", "Explain how the implementation works", "Close on evidenced user value"]
+};
+
+const audienceFrames: Record<string, string> = {
+  "Hackathon judges": "Emphasize shipped implementation and verifiable execution.",
+  Investors: "Prioritize evidenced product value and implementation strength.",
+  "Potential customers": "Prioritize verified user value and practical capability.",
+  Developers: "Prioritize technical mechanisms and repository evidence.",
+  "General audience": "Use clear language while retaining evidence boundaries."
+};
 
 export function createStoryManifest(
   intelligence: RepositoryIntelligence,
@@ -12,9 +26,13 @@ export function createStoryManifest(
   const allowed = claimLock.claims.filter((claim) => claimLock.allowedClaimIds.includes(claim.id) && claim.allowedNarration);
   const sceneCount = 4;
   const durations = distributeDuration(Math.max(sceneCount, Math.round(targetDuration)), sceneCount);
+  const normalizedAudience = audience.trim() || "General audience";
+  const normalizedGoal = pitchGoal.trim() || "Product overview";
+  const purposes = goalPurposes[normalizedGoal] || goalPurposes["Product overview"];
+  const audienceFrame = audienceFrames[normalizedAudience] || audienceFrames["General audience"];
   const scenes: StoryScene[] = Array.from({ length: sceneCount }, (_, index) => {
     const claim = allowed[index % Math.max(allowed.length, 1)];
-    return sceneFromClaim(claim, index, durations[index]);
+    return sceneFromClaim(claim, index, durations[index], purposes[index], audienceFrame);
   });
   const provenance = scenes.flatMap((scene) => scene.evidenceReferences.map((reference) => ({
     sceneId: scene.sceneId,
@@ -23,9 +41,9 @@ export function createStoryManifest(
   })));
 
   return {
-    title: `${intelligence.productName}: Evidence-Backed Pitch`,
-    audience: audience.trim() || "General technical audience",
-    pitchGoal: pitchGoal.trim() || "Explain the verified product value",
+    title: `${intelligence.productName}: ${normalizedGoal} for ${normalizedAudience}`,
+    audience: normalizedAudience,
+    pitchGoal: normalizedGoal,
     targetDuration: durations.reduce((total, value) => total + value, 0),
     scenes,
     provenance,
@@ -35,14 +53,14 @@ export function createStoryManifest(
   };
 }
 
-function sceneFromClaim(claim: VerifiedClaim | undefined, index: number, duration: number): StoryScene {
+function sceneFromClaim(claim: VerifiedClaim | undefined, index: number, duration: number, purpose: string, audienceFrame: string): StoryScene {
   if (!claim?.allowedNarration) {
     return {
       sceneId: `scene-${index + 1}`,
-      purpose: purposes[index],
+      purpose,
       duration,
       narration: "Insufficient evidence.",
-      visualIntent: "Show a neutral repository card without asserting unverified product behavior.",
+      visualIntent: `Show a neutral repository card without asserting unverified product behavior. ${audienceFrame}`,
       claimIds: [],
       evidenceReferences: [],
       recommendedMediaType: "text-card"
@@ -51,10 +69,10 @@ function sceneFromClaim(claim: VerifiedClaim | undefined, index: number, duratio
   const evidenceIds = claim.evidence.map((item) => item.id);
   return {
     sceneId: `scene-${index + 1}`,
-    purpose: purposes[index],
+    purpose,
     duration,
     narration: claim.allowedNarration,
-    visualIntent: visualIntent(claim),
+    visualIntent: `${visualIntent(claim)} ${audienceFrame}`,
     claimIds: [claim.id],
     evidenceReferences: [{ claimId: claim.id, evidenceIds }],
     recommendedMediaType: recommendedMedia(claim)

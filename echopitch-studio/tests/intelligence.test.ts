@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { applyClaimLock } from "../app/lib/intelligence/claim-lock.ts";
 import { parseGitHubRepositoryUrl } from "../app/lib/intelligence/github.ts";
 import { createStoryManifest } from "../app/lib/intelligence/story-manifest.ts";
 import type { CandidateClaim, RepositoryIntelligence } from "../app/lib/intelligence/types.ts";
-import { normalizeGitHubRepositoryUrl } from "../app/lib/runs/validation.ts";
+import { normalizeGitHubRepositoryUrl, pitchAudiences, pitchDurations, pitchGoals } from "../app/lib/runs/validation.ts";
 
 const intelligence: RepositoryIntelligence = {
   repository: { owner: "example", name: "project", url: "https://github.com/example/project", defaultBranch: "main" },
@@ -35,6 +36,26 @@ test("normalizes composer repository URLs and rejects non-repository GitHub path
   assert.equal(normalizeGitHubRepositoryUrl("http://github.com/example/project"), undefined);
 });
 
+test("composer exposes the complete selectable audience, duration, and pitch-goal contract", () => {
+  assert.deepEqual([...pitchAudiences], ["Hackathon judges", "Investors", "Potential customers", "Developers", "General audience"]);
+  assert.deepEqual([...pitchDurations], [30, 60, 90, 120]);
+  assert.deepEqual([...pitchGoals], ["Product overview", "Hackathon pitch", "Investor pitch", "Technical walkthrough", "Customer demo"]);
+});
+
+test("landing navigation targets the composer and canonical product destinations without a donor dependency", async () => {
+  const source = await readFile(new URL("../app/components/landing/LandingPage.tsx", import.meta.url), "utf8");
+  assert.match(source, /\["How It Works", "Architecture", "Livepeer", "View Source"\]/);
+  assert.match(source, /https:\/\/livepeer\.org\//);
+  assert.match(source, /https:\/\/github\.com\/YakiUdoph\/echopitch-studio/);
+  assert.match(source, /href="#composer" onClick=\{focusComposer\}>Direct My Pitch/);
+  assert.match(source, /repositoryInput\.current\?\.focus/);
+  assert.match(source, /pitchAudiences\.map/);
+  assert.match(source, /pitchDurations\.map/);
+  assert.match(source, /pitchGoals\.map/);
+  for (const label of ["GitHub Repository", "Repository Intelligence", "ClaimLock Verification", "Story Director", "Production Director", "Repository Evidence + Livepeer Agent", "Pitch Critic", "Final Pitch Assembly", "Evidence Receipt + Production Receipt", "Upstash Redis"]) assert.match(source, new RegExp(label.replace(/[+]/g, "\\+")));
+  assert.doesNotMatch(source, new RegExp(["ma", "nus"].join(""), "i"));
+});
+
 test("ClaimLock supports implementation evidence, marks README-only claims partial, and rejects unsupported claims", () => {
   const candidates: CandidateClaim[] = [
     { id: "implemented", claim: "Provides an HTTP API", source: "capability", evidenceIds: ["ev-code"] },
@@ -59,4 +80,16 @@ test("Story Manifest uses supported claims only and preserves narration-to-evide
   assert.ok(manifest.scenes.every((scene) => !scene.claimIds.includes("invented")));
   assert.ok(manifest.scenes.every((scene) => scene.evidenceReferences.every((reference) => reference.evidenceIds.includes("ev-code"))));
   assert.ok(manifest.blockedClaims.some((claim) => claim.claimId === "invented"));
+});
+
+test("Story Director uses audience and goal framing and bounds a 120-second manifest", () => {
+  const lock = applyClaimLock(intelligence, [{ id: "implemented", claim: "Provides an HTTP API", source: "capability", evidenceIds: ["ev-code"] }]);
+  const manifest = createStoryManifest(intelligence, lock, "Developers", "Technical walkthrough", 120);
+  assert.equal(manifest.audience, "Developers");
+  assert.equal(manifest.pitchGoal, "Technical walkthrough");
+  assert.match(manifest.title, /Technical walkthrough for Developers/);
+  assert.deepEqual(manifest.scenes.map((scene) => scene.duration), [30, 30, 30, 30]);
+  assert.equal(manifest.scenes.reduce((total, scene) => total + scene.duration, 0), 120);
+  assert.match(manifest.scenes[0].purpose, /verified system/i);
+  assert.ok(manifest.scenes.every((scene) => /technical mechanisms and repository evidence/i.test(scene.visualIntent)));
 });

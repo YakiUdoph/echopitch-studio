@@ -1,6 +1,6 @@
-export const pitchAudiences = ["Hackathon judges", "Investors", "Developers", "Product users"] as const;
-export const pitchDurations = [30, 60, 90] as const;
-export const pitchGoals = ["Explain verified product", "Show technical architecture", "Showcase implemented capabilities"] as const;
+export const pitchAudiences = ["Hackathon judges", "Investors", "Potential customers", "Developers", "General audience"] as const;
+export const pitchDurations = [30, 60, 90, 120] as const;
+export const pitchGoals = ["Product overview", "Hackathon pitch", "Investor pitch", "Technical walkthrough", "Customer demo"] as const;
 
 export function normalizeGitHubRepositoryUrl(value: string): string | undefined {
   try {

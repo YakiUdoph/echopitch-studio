@@ -1,12 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, KeyboardEvent, MouseEvent, useEffect, useRef, useState } from "react";
 import { normalizeGitHubRepositoryUrl, pitchAudiences, pitchDurations, pitchGoals } from "../../lib/runs/validation";
 import styles from "./LandingPage.module.css";
 
 const VIDEO_URL = "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260826_124724_bc041163-d651-425f-aea3-2acc1efc2c96.mp4";
-const navItems = ["How It Works", "Architecture", "Livepeer", "GitHub"] as const;
+const LIVEPEER_URL = "https://livepeer.org/";
+const SOURCE_URL = "https://github.com/YakiUdoph/echopitch-studio";
+const navItems = ["How It Works", "Architecture", "Livepeer", "View Source"] as const;
 type OverlayName = "How It Works" | "Architecture";
 
 function BrandMark() { return <svg className={styles.brandMark} viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="17" fill="#9C86CE"/><circle cx="17" cy="17" r="8.6" fill="#fff"/><circle cx="17" cy="17" r="3.7" fill="#151519"/></svg>; }
@@ -20,53 +22,127 @@ function ChipIcon({ type }: { type: "audience" | "duration" | "goal" }) {
 
 export default function LandingPage() {
   const router = useRouter();
+  const repositoryInput = useRef<HTMLInputElement>(null);
   const [githubUrl, setGithubUrl] = useState("");
-  const [audience, setAudience] = useState<(typeof pitchAudiences)[number]>(pitchAudiences[0]);
+  const [audience, setAudience] = useState<(typeof pitchAudiences)[number]>("Hackathon judges");
   const [duration, setDuration] = useState<(typeof pitchDurations)[number]>(60);
-  const [pitchGoal, setPitchGoal] = useState<(typeof pitchGoals)[number]>(pitchGoals[0]);
+  const [pitchGoal, setPitchGoal] = useState<(typeof pitchGoals)[number]>("Product overview");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const [activeOverlay, setActiveOverlay] = useState<OverlayName>();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  useEffect(() => {
-    document.documentElement.classList.add("manus-entrance");
-    const timer = window.setTimeout(() => document.documentElement.classList.remove("manus-entrance"), 2600);
-    return () => { window.clearTimeout(timer); document.documentElement.classList.remove("manus-entrance"); };
-  }, []);
-
-  useEffect(() => {
-    if (!activeOverlay) return;
-    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setActiveOverlay(undefined); };
-    document.addEventListener("keydown", closeOnEscape);
-    return () => document.removeEventListener("keydown", closeOnEscape);
-  }, [activeOverlay]);
+  function focusComposer(event: MouseEvent<HTMLAnchorElement>) {
+    event.preventDefault();
+    document.getElementById("composer")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    repositoryInput.current?.focus({ preventScroll: true });
+  }
 
   async function submit(event: FormEvent) {
-    event.preventDefault(); setError("");
+    event.preventDefault();
+    setError("");
     const normalizedUrl = normalizeGitHubRepositoryUrl(githubUrl);
-    if (!normalizedUrl) { setError("Enter a canonical public GitHub repository URL."); return; }
+    if (!normalizedUrl) { setError("Enter a canonical public GitHub repository URL."); repositoryInput.current?.focus(); return; }
     setPending(true);
     try {
       const response = await fetch("/api/runs", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ githubUrl: normalizedUrl, audience, targetDuration: duration, pitchGoal }) });
       const payload = await response.json() as { run?: { id: string }; error?: string };
       if (!response.ok || !payload.run) throw new Error(payload.error || "Could not create the run.");
       router.push(`/studio?run=${encodeURIComponent(payload.run.id)}`);
-    } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); setPending(false); }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+      setPending(false);
+    }
   }
 
-  const externalHref = (item: (typeof navItems)[number]) => item === "Livepeer" ? "https://livepeer.org/" : "https://github.com/YakiUdoph/echopitch-studio";
   const navItem = (item: (typeof navItems)[number]) => item === "How It Works" || item === "Architecture"
     ? <button key={item} type="button" onClick={() => setActiveOverlay(item)}>{item}</button>
-    : <a key={item} href={externalHref(item)} target="_blank" rel="noreferrer">{item}</a>;
-  return <div className={styles.stage}><video className={styles.stageVideo} autoPlay muted loop playsInline preload="auto" src={VIDEO_URL}/><div className={styles.frame}>
-    <input className={styles.menuInput} type="checkbox" id="menu" aria-label="Toggle navigation menu"/><header className={styles.nav}><a className={styles.brand} href="#composer" aria-label="EchoPitch home"><BrandMark/><span>EchoPitch</span></a><nav className={styles.links} aria-label="Primary navigation">{navItems.map(navItem)}</nav><a className={styles.navCta} href="#composer">Direct My Pitch</a><label className={styles.burger} htmlFor="menu" aria-label="Open navigation menu"><span/><span/></label></header>
-    <div className={styles.sheet} aria-label="Mobile navigation">{navItems.map(navItem)}</div>
-    <main className={styles.hero}><h1>Your software already tells a story.</h1><form className={styles.card} id="composer" onSubmit={submit}><label className={styles.srOnly} htmlFor="github-url">GitHub repository URL</label><input id="github-url" className={styles.repoInput} type="url" inputMode="url" value={githubUrl} onChange={event => setGithubUrl(event.target.value)} placeholder="Paste a GitHub repository..." autoComplete="url" aria-invalid={Boolean(error)}/>
-      <div className={styles.tools}><div className={styles.chips} aria-label="Pitch settings"><label className={styles.chip}><ChipIcon type="audience"/><select aria-label="Audience" value={audience} onChange={event => setAudience(event.target.value as (typeof pitchAudiences)[number])}>{pitchAudiences.map(value => <option key={value}>{value}</option>)}</select></label><label className={styles.chip}><ChipIcon type="duration"/><select aria-label="Duration" value={duration} onChange={event => setDuration(Number(event.target.value) as (typeof pitchDurations)[number])}>{pitchDurations.map(value => <option key={value} value={value}>{value} seconds</option>)}</select></label><label className={styles.chip}><ChipIcon type="goal"/><select aria-label="Pitch goal" value={pitchGoal} onChange={event => setPitchGoal(event.target.value as (typeof pitchGoals)[number])}>{pitchGoals.map(value => <option key={value}>{value}</option>)}</select></label></div>
-      <div className={styles.right}><button className={styles.attach} type="button" aria-label="Focus repository URL" onClick={() => document.getElementById("github-url")?.focus()}><Paperclip/></button><button className={styles.send} type="submit" aria-label="Direct My Pitch" disabled={pending}><SendArrow/></button></div></div>{error && <p className={styles.error} role="alert">{error}</p>}{pending && <p className={styles.pending} role="status">Creating run…</p>}</form></main><div className={styles.proofSpace} aria-hidden="true"/>
-  </div>{activeOverlay && <InfoOverlay name={activeOverlay} onClose={() => setActiveOverlay(undefined)}/>}</div>;
+    : <a key={item} href={item === "Livepeer" ? LIVEPEER_URL : SOURCE_URL} target="_blank" rel="noreferrer">{item}</a>;
+
+  return <div className={styles.stage}>
+    <video className={styles.stageVideo} autoPlay muted loop playsInline preload="auto" src={VIDEO_URL} aria-hidden="true" tabIndex={-1}/>
+    <div className={styles.frame} aria-hidden={Boolean(activeOverlay)}>
+      <header className={styles.nav}>
+        <a className={styles.brand} href="#composer" onClick={focusComposer} aria-label="EchoPitch home"><BrandMark/><span>EchoPitch</span></a>
+        <nav className={styles.links} aria-label="Primary navigation">{navItems.map(navItem)}</nav>
+        <a className={styles.navCta} href="#composer" onClick={focusComposer}>Direct My Pitch</a>
+        <button className={styles.burger} type="button" aria-label="Toggle navigation menu" aria-expanded={mobileMenuOpen} aria-controls="mobile-navigation" onClick={() => setMobileMenuOpen(open => !open)}><span/><span/></button>
+      </header>
+      {mobileMenuOpen ? <nav id="mobile-navigation" className={`${styles.sheet} ${styles.sheetOpen}`} aria-label="Mobile navigation">{navItems.map(navItem)}<a href="#composer" onClick={focusComposer}>Direct My Pitch</a></nav> : null}
+      <main className={styles.hero}>
+        <h1>Your software already tells a story.</h1>
+        <form className={styles.card} id="composer" onSubmit={submit}>
+          <label className={styles.srOnly} htmlFor="github-url">GitHub repository URL</label>
+          <input ref={repositoryInput} id="github-url" className={styles.repoInput} type="url" inputMode="url" value={githubUrl} onChange={event => setGithubUrl(event.target.value)} placeholder="Paste a GitHub repository..." autoComplete="url" aria-invalid={Boolean(error)} aria-describedby={error ? "composer-error" : undefined}/>
+          <div className={styles.tools}>
+            <div className={styles.chips} role="group" aria-label="Pitch settings">
+              <label className={styles.chip}><ChipIcon type="audience"/><span className={styles.srOnly}>Audience</span><select aria-label="Audience" value={audience} onChange={event => setAudience(event.target.value as (typeof pitchAudiences)[number])}>{pitchAudiences.map(value => <option key={value}>{value}</option>)}</select></label>
+              <label className={styles.chip}><ChipIcon type="duration"/><span className={styles.srOnly}>Duration</span><select aria-label="Duration" value={duration} onChange={event => setDuration(Number(event.target.value) as (typeof pitchDurations)[number])}>{pitchDurations.map(value => <option key={value} value={value}>{value === 120 ? "2 minutes" : `${value} seconds`}</option>)}</select></label>
+              <label className={styles.chip}><ChipIcon type="goal"/><span className={styles.srOnly}>Pitch goal</span><select aria-label="Pitch goal" value={pitchGoal} onChange={event => setPitchGoal(event.target.value as (typeof pitchGoals)[number])}>{pitchGoals.map(value => <option key={value}>{value}</option>)}</select></label>
+            </div>
+            <div className={styles.right}>
+              <button className={styles.attach} type="button" title="Focus repository URL" aria-label="Focus repository URL" onClick={() => repositoryInput.current?.focus()}><Paperclip/></button>
+              <button className={styles.send} type="submit" title="Create and direct this pitch" aria-label="Create and direct this pitch" disabled={pending}><SendArrow/></button>
+            </div>
+          </div>
+          {error ? <p className={styles.error} id="composer-error" role="alert">{error}</p> : null}
+          {pending ? <p className={styles.pending} role="status">Creating run…</p> : null}
+        </form>
+      </main>
+      <div className={styles.proofSpace} aria-hidden="true"/>
+    </div>
+    {activeOverlay ? <InfoOverlay name={activeOverlay} onClose={() => setActiveOverlay(undefined)}/> : null}
+  </div>;
 }
 
 function InfoOverlay({ name, onClose }: { name: OverlayName; onClose: () => void }) {
-  return <div className={styles.overlay} role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}><section className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="landing-dialog-title"><header><span>ECHOPITCH / {name.toUpperCase()}</span><button type="button" onClick={onClose} aria-label="Close overlay">×</button></header><h2 id="landing-dialog-title">{name}</h2>{name === "How It Works" ? <ol><li><b>Understand</b><span>Inspect the submitted repository and identify implemented product capabilities.</span></li><li><b>Verify + Plan</b><span>ClaimLock excludes unsupported claims, then creates an evidence-backed Story Manifest.</span></li><li><b>Produce + Review</b><span>The Production Director selects repository evidence or Livepeer media and the critic evaluates real results.</span></li><li><b>Deliver</b><span>Review the scene sequence with Evidence and Production Receipts.</span></li></ol> : <div className={styles.architecture}><span>Manus hero</span><i>→</i><span>Next.js run APIs</span><i>→</i><span>GitHub Repository Intelligence</span><i>→</i><span>ClaimLock + Story Manifest</span><i>→</i><span>Production Director + Livepeer</span><i>→</i><span>Pitch Critic + Receipts</span></div>}<p>No private reasoning is exposed—only operational state, verified evidence, and production provenance.</p></section></div>;
+  const dialog = useRef<HTMLElement>(null);
+  const closeButton = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const previousFocus = document.activeElement as HTMLElement | null;
+    closeButton.current?.focus();
+    return () => previousFocus?.focus();
+  }, []);
+  function handleKeyDown(event: KeyboardEvent<HTMLElement>) {
+    if (event.key === "Escape") { onClose(); return; }
+    if (event.key !== "Tab" || !dialog.current) return;
+    const focusable = [...dialog.current.querySelectorAll<HTMLElement>('button,a[href],select,input,[tabindex]:not([tabindex="-1"])')];
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable.at(-1)!;
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+  }
+  return <div className={styles.overlay} role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
+    <section ref={dialog} className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="landing-dialog-title" onKeyDown={handleKeyDown}>
+      <header><span>ECHOPITCH / {name.toUpperCase()}</span><button ref={closeButton} type="button" onClick={onClose} aria-label="Close overlay">×</button></header>
+      <h2 id="landing-dialog-title">{name}</h2>
+      {name === "How It Works" ? <ol>
+        <li><b>Understand</b><span>Inspect the submitted repository and identify implemented capabilities.</span></li>
+        <li><b>Verify</b><span>ClaimLock excludes unsupported claims from narration.</span></li>
+        <li><b>Plan</b><span>Build an audience-, goal-, and duration-aware Story Manifest.</span></li>
+        <li><b>Produce</b><span>Use repository evidence and Livepeer Agent where generated media is warranted.</span></li>
+        <li><b>Review</b><span>Critique real outputs and apply at most one bounded repair.</span></li>
+        <li><b>Deliver</b><span>Assemble the pitch with Evidence and Production Receipts.</span></li>
+      </ol> : <ArchitectureFlow/>}
+      <p>No private reasoning is exposed—only operational state, verified evidence, and production provenance.</p>
+    </section>
+  </div>;
+}
+
+function ArchitectureFlow() {
+  const phases = [
+    { phase: "UNDERSTAND", title: "GitHub Repository", detail: "Repository Intelligence" },
+    { phase: "VERIFY", title: "ClaimLock Verification", detail: "Supported claims only" },
+    { phase: "PLAN", title: "Story Director", detail: "Audience, objective, timing" },
+    { phase: "PRODUCE", title: "Production Director", detail: "Repository Evidence + Livepeer Agent" },
+    { phase: "REVIEW", title: "Pitch Critic", detail: "Bounded repair when required" },
+    { phase: "DELIVER", title: "Final Pitch Assembly", detail: "Evidence Receipt + Production Receipt" }
+  ];
+  return <div className={styles.architectureWrap}>
+    <ol className={styles.architectureFlow}>{phases.map((item, index) => <li key={item.phase}>
+      <span className={styles.phase}>{item.phase}</span><b>{item.title}</b><small>{item.detail}</small>{index < phases.length - 1 ? <i aria-hidden="true">↓</i> : null}
+    </li>)}</ol>
+    <aside className={styles.persistence}><span>Durable run state</span><b>Upstash Redis</b><small>Persists operational state and final artifacts across requests.</small></aside>
+  </div>;
 }

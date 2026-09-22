@@ -72,6 +72,18 @@ test("filesystem store survives fresh adapter instances and reconstructs the art
   }
 });
 
+test("persisted runs retain the selected composer configuration", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "echopitch-config-"));
+  try {
+    const store = new FileSystemRunStore(directory);
+    const created = await createRun({ githubUrl: "https://github.com/example/configured", audience: "Potential customers", pitchGoal: "Customer demo", targetDuration: 120 }, store);
+    const restored = await new FileSystemRunStore(directory).get(created.id);
+    assert.deepEqual(restored?.input, { githubUrl: "https://github.com/example/configured", audience: "Potential customers", pitchGoal: "Customer demo", targetDuration: 120 });
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("Upstash adapter contract survives fresh clients without process-local state", async () => {
   const durableService = new Map<string, unknown>();
   const firstRequestStore = new UpstashRunStore(new TestRedisClient(durableService));

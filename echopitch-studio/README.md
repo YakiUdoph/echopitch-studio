@@ -1,45 +1,64 @@
-# EchoPitch Studio
+# EchoPitch Studio application
 
-EchoPitch turns repository evidence into a claim-locked pitch storyboard, selectively generates explanatory media through Livepeer, and persists the final interactive artifact with evidence and production receipts.
+This directory is the production Next.js application and the configured Vercel Root Directory. For the product overview and canonical documentation, start with the [repository README](../README.md).
 
-## Local development
+## Requirements
 
-Use Node.js 22.14 or newer. Copy `.env.example` to `.env.local`, configure the run store and GitHub token, then run:
+- Node.js 22.14 or newer
+- npm
+- network access to GitHub and, for production runs, Livepeer Creative MCP
+
+## Setup
 
 ```bash
 npm ci
-npm run dev
 ```
 
-The production API route has a 300-second `maxDuration`. Filesystem storage is used outside production; production requires Upstash Redis.
+Copy `.env.example` to `.env.local` and provide values locally. Never commit credentials.
 
-## Livepeer Creative MCP
+Production persistence requires:
 
-Production uses the official Creative MCP endpoint:
+- `UPSTASH_REDIS_REST_URL`
+- `UPSTASH_REDIS_REST_TOKEN`
 
-```text
-https://agent.livepeer.org/api/mcp/creative
-```
+Optional configuration:
 
-The current endpoint offers keyless demo credits, so no Livepeer API key is required. `LIVEPEER_MCP_URL` can override the endpoint, and the optional `LIVEPEER_IMAGE_CAPABILITY`, `LIVEPEER_VIDEO_CAPABILITY`, and `LIVEPEER_TTS_CAPABILITY` variables can request specific models.
+- `ECHOPITCH_RUN_STORE` (`filesystem` locally or `upstash`)
+- `GITHUB_TOKEN`
+- `LIVEPEER_MCP_URL`
+- `LIVEPEER_IMAGE_CAPABILITY`
+- `LIVEPEER_VIDEO_CAPABILITY`
+- `LIVEPEER_TTS_CAPABILITY`
+- `LIVEPEER_POLL_INTERVAL_MS`
+- `LIVEPEER_TIMEOUT_MS`
+- `LIVEPEER_IMAGE_PROMPT` and `LIVEPEER_VIDEO_PROMPT` for live gate scripts only
 
-Every Livepeer attempt follows the server's approval contract:
+The Livepeer client defaults to the public Creative MCP endpoint and currently uses keyless demo access. The application does not define a Livepeer credential variable.
 
-1. Discover currently available capabilities with `list_capabilities`.
-2. Propose the exact single-step `create_media` request through `submit_plan`.
-3. Require a `proposed` plan with a numeric `total_est_cost_usd`; otherwise stop before generation.
-4. Approve that same plan with `confirm: true` and poll `get_plan` to completion.
-5. Persist the raw estimate response, per-attempt estimate, actual cost/units when returned, selected capability, job ID, substitution data, output URL, critic result, and repair history.
-
-Repository evidence remains preferred where it explains a scene. Livepeer generation is reserved for genuinely explanatory visuals and narration. Visual repair stays bounded to two attempts, and every repair receives a fresh estimate before approval.
-
-## Verification
+## Commands
 
 ```bash
+npm run dev
 npm run build
 npm run typecheck
 npm run lint
 npm test
+npm run test:production
 ```
 
-Live integration scripts can spend credits and are intentionally separate from the default test suite. Do not run them during routine engineering validation.
+The default tests are deterministic and do not perform paid generation. Scripts whose names include `:live`, `test:livepeer`, or the Phase E/F gates call external services and may consume Livepeer credits.
+
+## Runtime behavior
+
+- Local development defaults to filesystem run storage under `.data/runs`.
+- Production selects Upstash Redis and refuses the filesystem adapter.
+- Analysis route maximum duration is 60 seconds.
+- Production route maximum duration is 300 seconds.
+- Final artifacts are reconstructed HTML responses, not committed build outputs.
+
+## Detailed documentation
+
+- [Architecture](../docs/ARCHITECTURE.md)
+- [Livepeer Integration](../docs/LIVEPEER.md)
+- [ClaimLock](../docs/CLAIMLOCK.md)
+- [Failure Modes](../docs/FAILURE-MODES.md)

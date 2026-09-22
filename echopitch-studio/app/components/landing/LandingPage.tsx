@@ -7,8 +7,7 @@ import styles from "./LandingPage.module.css";
 
 const VIDEO_URL = "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260826_124724_bc041163-d651-425f-aea3-2acc1efc2c96.mp4";
 const LIVEPEER_URL = "https://livepeer.org/";
-const SOURCE_URL = "https://github.com/YakiUdoph/echopitch-studio";
-const navItems = ["How It Works", "Architecture", "Livepeer", "View Source"] as const;
+const navItems = ["How It Works", "Architecture", "Livepeer"] as const;
 type OverlayName = "How It Works" | "Architecture";
 
 function BrandMark() { return <svg className={styles.brandMark} viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="17" fill="#9C86CE"/><circle cx="17" cy="17" r="8.6" fill="#fff"/><circle cx="17" cy="17" r="3.7" fill="#151519"/></svg>; }
@@ -57,7 +56,7 @@ export default function LandingPage() {
 
   const navItem = (item: (typeof navItems)[number]) => item === "How It Works" || item === "Architecture"
     ? <button key={item} type="button" onClick={() => setActiveOverlay(item)}>{item}</button>
-    : <a key={item} href={item === "Livepeer" ? LIVEPEER_URL : SOURCE_URL} target="_blank" rel="noreferrer">{item}</a>;
+    : <a key={item} href={LIVEPEER_URL} target="_blank" rel="noreferrer">{item}</a>;
 
   return <div className={styles.stage}>
     <video className={styles.stageVideo} autoPlay muted loop playsInline preload="auto" src={VIDEO_URL} aria-hidden="true" tabIndex={-1}/>

@@ -42,16 +42,19 @@ test("composer exposes the complete selectable audience, duration, and pitch-goa
   assert.deepEqual([...pitchGoals], ["Product overview", "Hackathon pitch", "Investor pitch", "Technical walkthrough", "Customer demo"]);
 });
 
-test("landing navigation targets the composer and canonical product destinations without a donor dependency", async () => {
+test("landing navigation targets the composer and dropdowns remain pointer-interactive", async () => {
   const source = await readFile(new URL("../app/components/landing/LandingPage.tsx", import.meta.url), "utf8");
-  assert.match(source, /\["How It Works", "Architecture", "Livepeer", "View Source"\]/);
+  const styles = await readFile(new URL("../app/components/landing/LandingPage.module.css", import.meta.url), "utf8");
+  assert.match(source, /\["How It Works", "Architecture", "Livepeer"\]/);
   assert.match(source, /https:\/\/livepeer\.org\//);
-  assert.match(source, /https:\/\/github\.com\/YakiUdoph\/echopitch-studio/);
+  assert.doesNotMatch(source, /View Source|SOURCE_URL/);
   assert.match(source, /href="#composer" onClick=\{focusComposer\}>Direct My Pitch/);
   assert.match(source, /repositoryInput\.current\?\.focus/);
   assert.match(source, /pitchAudiences\.map/);
   assert.match(source, /pitchDurations\.map/);
   assert.match(source, /pitchGoals\.map/);
+  assert.match(styles, /\.right\{[^}]*pointer-events:none/);
+  assert.match(styles, /\.right button\{[^}]*pointer-events:auto/);
   for (const label of ["GitHub Repository", "Repository Intelligence", "ClaimLock Verification", "Story Director", "Production Director", "Repository Evidence + Livepeer Agent", "Pitch Critic", "Final Pitch Assembly", "Evidence Receipt + Production Receipt", "Upstash Redis"]) assert.match(source, new RegExp(label.replace(/[+]/g, "\\+")));
   assert.doesNotMatch(source, new RegExp(["ma", "nus"].join(""), "i"));
 });

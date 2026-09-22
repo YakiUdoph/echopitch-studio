@@ -158,13 +158,13 @@ test("Livepeer parser handles JSON, SSE, malformed results, outputs, and failed 
   assert.throws(() => assertToolSuccess({ result: { isError: true, content: [{ text: "job failed" }] } }, "job"), /job failed/);
 });
 
-test("Livepeer MCP initializes and calls tools without authorization", async () => {
+test("Livepeer Creative MCP estimates before approval and persists exact cost evidence without authorization", async () => {
   const originalFetch = globalThis.fetch;
-  const requests: Array<{ method: string; tool?: string; authorization: string | null }> = [];
+  const requests: Array<{ method: string; tool?: string; args?: Record<string, unknown>; authorization: string | null }> = [];
   globalThis.fetch = async (_input, init) => {
-    const request = JSON.parse(String(init?.body)) as { id?: string; method: string; params?: { name?: string } };
+    const request = JSON.parse(String(init?.body)) as { id?: string; method: string; params?: { name?: string; arguments?: Record<string, unknown> } };
     const headers = new Headers(init?.headers);
-    requests.push({ method: request.method, tool: request.params?.name, authorization: headers.get("authorization") });
+    requests.push({ method: request.method, tool: request.params?.name, args: request.params?.arguments, authorization: headers.get("authorization") });
     if (request.method === "initialize") {
       return Response.json({ jsonrpc: "2.0", id: request.id, result: {} }, { headers: { "mcp-session-id": "keyless-test-session" } });
     }
@@ -172,27 +172,104 @@ test("Livepeer MCP initializes and calls tools without authorization", async () 
     if (request.method === "tools/call" && request.params?.name === "list_capabilities") {
       return Response.json({ jsonrpc: "2.0", id: request.id, result: { structuredContent: { capabilities: [{ name: "flux-schnell" }] } } });
     }
-    if (request.method === "tools/call" && request.params?.name === "run_capability") {
-      return Response.json({ jsonrpc: "2.0", id: request.id, result: { structuredContent: { output_url: "https://example.com/keyless.png" } } });
+    if (request.method === "tools/call" && request.params?.name === "submit_plan" && request.params.arguments?.steps) {
+      return Response.json({ jsonrpc: "2.0", id: request.id, result: { structuredContent: { plan_id: "plan_keyless1", status: "proposed", steps: [{ id: 1, tool: "create_media", est_cost_usd: 0.0032 }], total_est_cost_usd: 0.0032 } } });
+    }
+    if (request.method === "tools/call" && request.params?.name === "submit_plan" && request.params.arguments?.confirm === true) {
+      return Response.json({ jsonrpc: "2.0", id: request.id, result: { structuredContent: { plan_id: "plan_keyless1", status: "running" } } });
+    }
+    if (request.method === "tools/call" && request.params?.name === "get_plan") {
+      return Response.json({ jsonrpc: "2.0", id: request.id, result: { structuredContent: { plan_id: "plan_keyless1", status: "done", total_actual_cost_usd: 0.0031, steps: [{ status: "done", result: { url: "https://example.com/keyless.png", job_id: "mjob_keyless", capability_used: "flux-schnell", cost_paid_usd: 0.0031, billable_units: 1, cost_unit_kind: "megapixel" } }] } } });
     }
     return Response.json({ jsonrpc: "2.0", id: request.id, error: { message: "Unexpected test request" } }, { status: 500 });
   };
 
   try {
-    const client = new LivepeerMcpClient({ endpoint: "https://example.test/api/mcp" });
+    const client = new LivepeerMcpClient({ endpoint: "https://example.test/api/mcp/creative" });
     const result = await client.generate({
       sceneId: "keyless-test", mediaSource: "livepeer-generated", mediaType: "image", requestedCapability: "flux-schnell",
       prompt: "Verify keyless transport", claimIds: [], evidenceIds: [], continuity: "Test only."
     });
     assert.equal(result.status, "completed", result.error);
     assert.equal(result.outputReference, "https://example.com/keyless.png");
+    assert.equal(result.costEstimate?.estimatedCostUsd, 0.0032);
+    assert.equal(result.costEstimate?.planId, "plan_keyless1");
+    assert.equal(result.actualCost?.costUsd, 0.0031);
+    assert.equal(result.actualCost?.paidUsd, 0.0031);
+    assert.equal(result.actualCost?.units, 1);
+    assert.equal(result.actualCost?.unitKind, "megapixel");
     assert.deepEqual(requests.map(({ method, tool }) => ({ method, tool })), [
       { method: "initialize", tool: undefined },
       { method: "notifications/initialized", tool: undefined },
       { method: "tools/call", tool: "list_capabilities" },
-      { method: "tools/call", tool: "run_capability" }
+      { method: "tools/call", tool: "submit_plan" },
+      { method: "tools/call", tool: "submit_plan" },
+      { method: "tools/call", tool: "get_plan" }
     ]);
+    const proposedStep = (requests[3].args?.steps as Array<{ args: Record<string, unknown> }>)[0];
+    assert.deepEqual({ action: proposedStep.args.action, model: proposedStep.args.model_override, ratio: proposedStep.args.aspect_ratio }, { action: "generate", model: "flux-schnell", ratio: "16:9" });
+    assert.deepEqual(requests[4].args, { plan_id: "plan_keyless1", confirm: true });
     assert.ok(requests.every((request) => request.authorization === null));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("Livepeer Creative MCP blocks generation when the estimate response is invalid", async () => {
+  const originalFetch = globalThis.fetch;
+  const calledTools: string[] = [];
+  globalThis.fetch = async (_input, init) => {
+    const request = JSON.parse(String(init?.body)) as { id?: string; method: string; params?: { name?: string } };
+    if (request.method === "initialize") return Response.json({ jsonrpc: "2.0", id: request.id, result: {} });
+    if (request.method === "notifications/initialized") return new Response(null, { status: 202 });
+    if (request.params?.name) calledTools.push(request.params.name);
+    if (request.params?.name === "list_capabilities") return Response.json({ jsonrpc: "2.0", id: request.id, result: { structuredContent: { capabilities: [{ name: "flux-schnell" }] } } });
+    if (request.params?.name === "submit_plan") return Response.json({ jsonrpc: "2.0", id: request.id, result: { structuredContent: { plan_id: "plan_invalid1", status: "proposed" } } });
+    return Response.json({ jsonrpc: "2.0", id: request.id, error: { message: "Unexpected request" } }, { status: 500 });
+  };
+  try {
+    const result = await new LivepeerMcpClient({ endpoint: "https://example.test/api/mcp/creative" }).generate({
+      sceneId: "estimate-gate", mediaSource: "livepeer-generated", mediaType: "image", requestedCapability: "flux-schnell",
+      prompt: "Estimate gate", claimIds: [], evidenceIds: [], continuity: "Test only."
+    });
+    assert.equal(result.status, "failed");
+    assert.match(result.error || "", /numeric USD estimate/);
+    assert.equal((result.raw?.result as { structuredContent?: { plan_id?: string } })?.structuredContent?.plan_id, "plan_invalid1");
+    assert.deepEqual(calledTools, ["list_capabilities", "submit_plan"]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("Livepeer Creative MCP estimates TTS with the exact create_media arguments before approval", async () => {
+  const originalFetch = globalThis.fetch;
+  let proposedArgs: Record<string, unknown> | undefined;
+  globalThis.fetch = async (_input, init) => {
+    const request = JSON.parse(String(init?.body)) as { id?: string; method: string; params?: { name?: string; arguments?: Record<string, unknown> } };
+    if (request.method === "initialize") return Response.json({ jsonrpc: "2.0", id: request.id, result: {} });
+    if (request.method === "notifications/initialized") return new Response(null, { status: 202 });
+    if (request.params?.name === "list_capabilities") return Response.json({ jsonrpc: "2.0", id: request.id, result: { structuredContent: { capabilities: [{ name: "gemini-tts" }] } } });
+    if (request.params?.name === "submit_plan" && request.params.arguments?.steps) {
+      proposedArgs = (request.params.arguments.steps as Array<{ args: Record<string, unknown> }>)[0].args;
+      return Response.json({ jsonrpc: "2.0", id: request.id, result: { structuredContent: { plan_id: "plan_tts123", status: "proposed", total_est_cost_usd: 0.0014 } } });
+    }
+    if (request.params?.name === "submit_plan" && request.params.arguments?.confirm === true) {
+      return Response.json({ jsonrpc: "2.0", id: request.id, result: { structuredContent: { plan_id: "plan_tts123", status: "done", steps: [{ result: { url: "https://example.com/voice.wav", capability_used: "gemini-tts" } }] } } });
+    }
+    return Response.json({ jsonrpc: "2.0", id: request.id, error: { message: "Unexpected request" } }, { status: 500 });
+  };
+  try {
+    const result = await new LivepeerMcpClient({ endpoint: "https://example.test/api/mcp/creative" }).generate({
+      sceneId: "narration-scene-1", mediaSource: "livepeer-generated", mediaType: "audio", requestedCapability: "gemini-tts",
+      prompt: "Verified narration.", claimIds: [], evidenceIds: [], continuity: "Previous: opening. Next: close."
+    });
+    assert.equal(result.status, "completed", result.error);
+    assert.equal(result.outputReference, "https://example.com/voice.wav");
+    assert.equal(result.costEstimate?.estimatedCostUsd, 0.0014);
+    assert.equal(proposedArgs?.action, "tts");
+    assert.equal(proposedArgs?.model_override, "gemini-tts");
+    assert.equal(proposedArgs?.prompt, "Verified narration.");
+    assert.equal(proposedArgs?.aspect_ratio, undefined);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -214,8 +291,10 @@ test("Critic rejects invalid artifacts, preserves provenance, and creates a boun
 
 test("Critic accepts valid results and receipt retains attempts, claims, evidence, latency, and repair history", async () => {
   const instruction: ProductionInstruction = directManifest(context)[1];
-  const invalid = { sceneId: "scene-2", requestedCapability: "flux-schnell", prompt: instruction.prompt, latencyMs: 3, status: "failed" as const, error: "invalid artifact" };
-  const valid = { sceneId: "scene-2", requestedCapability: "flux-schnell", executedCapability: "flux-schnell", prompt: instruction.prompt, outputReference: "https://example.com/final.png", latencyMs: 7, status: "completed" as const };
+  const firstEstimate = { planId: "plan_attempt1", status: "proposed" as const, estimatedCostUsd: 0.0032, currency: "USD" as const, raw: { attempt: 1 } };
+  const secondEstimate = { planId: "plan_attempt2", status: "proposed" as const, estimatedCostUsd: 0.0032, currency: "USD" as const, raw: { attempt: 2 } };
+  const invalid = { sceneId: "scene-2", requestedCapability: "flux-schnell", prompt: instruction.prompt, latencyMs: 3, status: "failed" as const, costEstimate: firstEstimate, error: "invalid artifact" };
+  const valid = { sceneId: "scene-2", requestedCapability: "flux-schnell", executedCapability: "flux-schnell", prompt: instruction.prompt, outputReference: "https://example.com/final.png", latencyMs: 7, status: "completed" as const, costEstimate: secondEstimate, actualCost: { paidUsd: 0.0031, units: 1, unitKind: "megapixel" } };
   const production = await produceScene(context, instruction, new SequenceExecutor([invalid, valid]));
   assert.equal(production.finalVerdict, "ACCEPT");
   assert.equal(production.attempts.length, 2);
@@ -226,6 +305,10 @@ test("Critic accepts valid results and receipt retains attempts, claims, evidenc
   assert.deepEqual(receipt.scenes[0].verifiedClaimReferences, ["claim-framework"]);
   assert.deepEqual(receipt.scenes[0].evidenceIds, ["ev-config"]);
   assert.equal(receipt.scenes[0].repairHistory.length, 1);
+  assert.deepEqual(receipt.scenes[0].costEstimates, [firstEstimate, secondEstimate]);
+  assert.deepEqual(receipt.scenes[0].actualCosts, [{ paidUsd: 0.0031, units: 1, unitKind: "megapixel" }]);
+  assert.equal(receipt.capabilityExecutions[1].costEstimate?.planId, "plan_attempt2");
+  assert.equal(receipt.capabilityExecutions[1].actualCost?.paidUsd, 0.0031);
   assert.equal(receipt.totalLatencyMs, 10);
   assert.equal(receipt.narration.status, "text-only");
   assert.equal(receipt.narration.audioEmbedded, false);

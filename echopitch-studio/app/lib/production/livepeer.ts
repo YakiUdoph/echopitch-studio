@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import type { GenerationExecutor, LivepeerGenerationResult, ProductionInstruction } from "./types.ts";
+import type { GenerationExecutor, LivepeerActualCost, LivepeerCostEstimate, LivepeerGenerationResult, ProductionInstruction } from "./types.ts";
 
 type JsonObject = Record<string, unknown>;
 
@@ -18,7 +18,7 @@ export class LivepeerMcpClient implements GenerationExecutor {
   private availableCapabilities?: Set<string>;
 
   constructor(options: LivepeerClientOptions = {}) {
-    this.endpoint = options.endpoint || process.env.LIVEPEER_MCP_URL || "https://agent.livepeer.org/api/mcp";
+    this.endpoint = options.endpoint || process.env.LIVEPEER_MCP_URL || "https://agent.livepeer.org/api/mcp/creative";
     this.pollIntervalMs = options.pollIntervalMs || numberEnv("LIVEPEER_POLL_INTERVAL_MS", 5_000);
     this.timeoutMs = options.timeoutMs || numberEnv("LIVEPEER_TIMEOUT_MS", 10 * 60_000);
   }
@@ -35,37 +35,49 @@ export class LivepeerMcpClient implements GenerationExecutor {
     const startedAt = Date.now();
     const mediaType = instruction.mediaType || "image";
     const requestedCapability = instruction.requestedCapability || defaultCapability(mediaType);
+    let costEstimate: LivepeerCostEstimate | undefined;
+    let estimateRaw: JsonObject | undefined;
     try {
       await this.initialize();
       const capabilities = await this.discoverCapabilities();
       const executedCapability = selectCapability(requestedCapability, mediaType, capabilities);
       const discoverySubstitution = executedCapability === requestedCapability ? undefined : { requested: requestedCapability, served: executedCapability, reason: "requested_capability_unavailable" };
-      let payload = await this.callTool("run_capability", {
-        capability: executedCapability,
+      const createMediaArgs: JsonObject = {
+        action: mediaType === "audio" ? "tts" : "generate",
+        model_override: executedCapability,
         prompt: instruction.prompt,
-        inputs: mediaType === "video" ? { aspect_ratio: "16:9", duration: 5 } : mediaType === "image" ? { aspect_ratio: "16:9" } : { prompt: instruction.prompt },
-        timeout: Math.max(Math.ceil(this.timeoutMs / 1_000), mediaType === "audio" ? 62 : mediaType === "image" ? 40 : 90),
-        async: mediaType === "video",
+        ...(mediaType === "video" ? { aspect_ratio: "16:9", duration: 5 } : mediaType === "image" ? { aspect_ratio: "16:9" } : {}),
+        async: true,
         persist: false,
         session_id: `echopitch_scene_${safeId(instruction.sceneId)}`,
         idempotency_key: `echopitch_${safeId(instruction.sceneId)}_${crypto.randomUUID()}`
+      };
+      const estimatePayload = await this.callTool("submit_plan", {
+        goal: `EchoPitch ${mediaType} for ${instruction.sceneId}`,
+        steps: [{ tool: "create_media", label: `${instruction.sceneId} ${mediaType}`, args: createMediaArgs }]
       });
-      assertToolSuccess(payload, `Livepeer scene ${instruction.sceneId}`);
-      const jobId = extractString(payload, ["job_id", "jobId"]);
-      if (jobId && !extractOutputReference(payload)) payload = await this.poll(jobId, startedAt);
+      estimateRaw = estimatePayload;
+      assertToolSuccess(estimatePayload, `Livepeer cost estimate for ${instruction.sceneId}`);
+      costEstimate = parseCostEstimate(estimatePayload, instruction.sceneId);
+
+      let payload = await this.callTool("submit_plan", { plan_id: costEstimate.planId, confirm: true });
+      assertToolSuccess(payload, `Livepeer plan approval for ${instruction.sceneId}`);
+      if (!extractOutputReference(payload)) payload = await this.pollPlan(costEstimate.planId, startedAt);
       const outputReference = extractOutputReference(payload);
       if (!outputReference) throw new Error("Livepeer completed without an output reference.");
+      const jobId = extractString(payload, ["job_id", "jobId"]);
       const capabilityUsed = extractString(payload, ["capability_used", "capability", "executed_capability", "served_capability"]) || executedCapability;
       return {
         sceneId: instruction.sceneId, requestedCapability, executedCapability: capabilityUsed, prompt: instruction.prompt,
         jobId, outputReference, latencyMs: Date.now() - startedAt, status: "completed",
         substitution: extractValue(payload, ["upstream_substitution", "model_note", "modelNote"]) || discoverySubstitution,
-        capabilityDiscovery: { discoveredAt: new Date().toISOString(), availableCapabilities: capabilities.size, requestedAvailable: capabilities.has(requestedCapability) }, raw: payload
+        capabilityDiscovery: { discoveredAt: new Date().toISOString(), availableCapabilities: capabilities.size, requestedAvailable: capabilities.has(requestedCapability) },
+        costEstimate, actualCost: extractActualCost(payload), raw: payload
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const status = /timed out/i.test(message) ? "timed-out" : "failed";
-      return { sceneId: instruction.sceneId, requestedCapability, prompt: instruction.prompt, latencyMs: Date.now() - startedAt, status, error: message };
+      return { sceneId: instruction.sceneId, requestedCapability, prompt: instruction.prompt, latencyMs: Date.now() - startedAt, status, costEstimate, error: message, raw: estimateRaw };
     }
   }
 
@@ -80,16 +92,16 @@ export class LivepeerMcpClient implements GenerationExecutor {
     return this.availableCapabilities;
   }
 
-  private async poll(jobId: string, startedAt: number): Promise<JsonObject> {
+  private async pollPlan(planId: string, startedAt: number): Promise<JsonObject> {
     while (Date.now() - startedAt < this.timeoutMs) {
-      const payload = await this.callTool("get_create_media", { job_id: jobId });
-      assertToolSuccess(payload, `Livepeer job ${jobId}`);
+      const payload = await this.callTool("get_plan", { plan_id: planId });
+      assertToolSuccess(payload, `Livepeer plan ${planId}`);
       const status = (extractString(payload, ["status", "state"]) || "").toLowerCase();
-      if (["failed", "cancelled", "canceled", "error"].includes(status)) throw new Error(`Livepeer job ${jobId} failed with status ${status}: ${collectText(payload)}`);
+      if (["failed", "partial", "cancelled", "canceled", "error"].includes(status)) throw new Error(`Livepeer plan ${planId} failed with status ${status}: ${collectText(payload)}`);
       if (extractOutputReference(payload) && ["", "done", "completed", "complete", "succeeded", "success", "ready"].includes(status)) return payload;
       await new Promise((resolve) => setTimeout(resolve, this.pollIntervalMs));
     }
-    throw new Error(`Livepeer job ${jobId} timed out after ${this.timeoutMs}ms.`);
+    throw new Error(`Livepeer plan ${planId} timed out after ${this.timeoutMs}ms.`);
   }
 
   private callTool(name: string, args: JsonObject) { return this.rpc("tools/call", { name, arguments: args }); }
@@ -142,10 +154,29 @@ function collectObjects(value: unknown, output: JsonObject[] = []): JsonObject[]
 }
 function extractValue(payload: JsonObject, keys: string[]): unknown { for (const item of collectObjects(payload)) for (const key of keys) if (item[key] !== undefined) return item[key]; }
 function extractString(payload: JsonObject, keys: string[]): string | undefined { const value = extractValue(payload, keys); return typeof value === "string" && value ? value : undefined; }
+function extractNumber(payload: JsonObject, keys: string[]): number | undefined { const value = extractValue(payload, keys); return typeof value === "number" && Number.isFinite(value) ? value : undefined; }
 function collectText(payload: JsonObject): string { const content = object(payload.result)?.content; return Array.isArray(content) ? content.map((item) => object(item)?.text).filter((text): text is string => typeof text === "string").join("\n") : ""; }
 function object(value: unknown): JsonObject | undefined { return typeof value === "object" && value !== null && !Array.isArray(value) ? value as JsonObject : undefined; }
 function safeId(value: string) { return value.replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 80) || "scene"; }
 function numberEnv(name: string, fallback: number) { const value = Number(process.env[name]); return Number.isFinite(value) && value > 0 ? value : fallback; }
+function parseCostEstimate(payload: JsonObject, sceneId: string): LivepeerCostEstimate {
+  const planId = extractString(payload, ["plan_id"]);
+  const status = extractString(payload, ["status"]);
+  const estimatedCostUsd = extractNumber(payload, ["total_est_cost_usd"]);
+  if (!planId || status !== "proposed" || estimatedCostUsd === undefined || estimatedCostUsd < 0) {
+    throw new Error(`Livepeer cost estimate for ${sceneId} did not return a valid proposed plan and numeric USD estimate.`);
+  }
+  return { planId, status: "proposed", estimatedCostUsd, currency: "USD", raw: payload };
+}
+function extractActualCost(payload: JsonObject): LivepeerActualCost | undefined {
+  const actualCost: LivepeerActualCost = {
+    costUsd: extractNumber(payload, ["actual_cost_usd", "total_actual_cost_usd", "cost_usd"]),
+    paidUsd: extractNumber(payload, ["cost_paid_usd"]),
+    units: extractNumber(payload, ["billable_units", "cost_units"]),
+    unitKind: extractString(payload, ["cost_unit_kind", "unit_kind", "billable_units_source"])
+  };
+  return Object.values(actualCost).some((value) => value !== undefined) ? actualCost : undefined;
+}
 function defaultCapability(mediaType: NonNullable<ProductionInstruction["mediaType"]>) {
   if (mediaType === "video") return process.env.LIVEPEER_VIDEO_CAPABILITY || "pixverse-t2v";
   if (mediaType === "audio") return process.env.LIVEPEER_TTS_CAPABILITY || "gemini-tts";

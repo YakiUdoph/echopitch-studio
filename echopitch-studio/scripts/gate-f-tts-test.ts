@@ -18,11 +18,11 @@ const instruction: ProductionInstruction = {
 async function main() {
   const resultDirectory = path.join(process.cwd(), ".data", "reliability");
   const requestShape = {
-    tool: "run_capability",
-    capability: "gemini-tts",
-    prompt: "string",
-    inputs: { prompt: "string" },
-    async: false,
+    estimateTool: "submit_plan",
+    estimateMode: "propose",
+    executionTool: "submit_plan",
+    executionApproval: { plan_id: "from estimate", confirm: true },
+    step: { tool: "create_media", args: { action: "tts", model_override: "gemini-tts", prompt: "string", async: true } },
     secretFields: "omitted"
   };
   const result = await new LivepeerMcpClient().generate(instruction);
@@ -42,6 +42,8 @@ async function main() {
     artifactType,
     artifactReference: result.outputReference,
     latencyMs: result.latencyMs,
+    costEstimate: result.costEstimate,
+    actualCost: result.actualCost,
     substitutionOrFallback: result.substitution,
     errorCategory: result.error ? categorize(result.error) : undefined,
     error: result.error

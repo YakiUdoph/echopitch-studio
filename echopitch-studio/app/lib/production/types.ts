@@ -29,6 +29,21 @@ export interface ProductionInstruction {
   continuity: string;
 }
 
+export interface LivepeerCostEstimate {
+  planId: string;
+  status: "proposed";
+  estimatedCostUsd: number;
+  currency: "USD";
+  raw: Record<string, unknown>;
+}
+
+export interface LivepeerActualCost {
+  costUsd?: number;
+  paidUsd?: number;
+  units?: number;
+  unitKind?: string;
+}
+
 export interface LivepeerGenerationResult {
   sceneId: string;
   requestedCapability: string;
@@ -44,6 +59,8 @@ export interface LivepeerGenerationResult {
     availableCapabilities: number;
     requestedAvailable: boolean;
   };
+  costEstimate?: LivepeerCostEstimate;
+  actualCost?: LivepeerActualCost;
   error?: string;
   raw?: Record<string, unknown>;
 }
@@ -99,6 +116,8 @@ export interface ProductionReceipt {
     finalOutputReference?: string;
     latencyMs: number;
     failuresAndFallbacks: string[];
+    costEstimates?: LivepeerCostEstimate[];
+    actualCosts?: LivepeerActualCost[];
     finalVerdict: SceneProduction["finalVerdict"];
   }>;
   totalLatencyMs: number;
@@ -116,6 +135,8 @@ export interface ProductionReceipt {
     status: ProductionStatus;
     outputReference?: string;
     substitution?: unknown;
+    costEstimate?: LivepeerCostEstimate;
+    actualCost?: LivepeerActualCost;
     error?: string;
   }>;
   narration: {
@@ -142,6 +163,8 @@ export interface NarrationSegment {
   latencyMs: number;
   error?: string;
   substitution?: unknown;
+  costEstimate?: LivepeerCostEstimate;
+  actualCost?: LivepeerActualCost;
 }
 
 export interface NarrationProduction {

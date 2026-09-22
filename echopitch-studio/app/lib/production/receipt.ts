@@ -19,19 +19,22 @@ export function createProductionReceipt(context: ProductionContext, productions:
       finalOutputReference: production.finalOutputReference,
       latencyMs: results.reduce((sum, result) => sum + result.latencyMs, 0),
       failuresAndFallbacks: results.flatMap((result) => [result.error, result.substitution ? JSON.stringify(result.substitution) : undefined]).filter((item): item is string => Boolean(item)),
+      costEstimates: results.map((result) => result.costEstimate).filter((estimate): estimate is NonNullable<typeof estimate> => Boolean(estimate)),
+      actualCosts: results.map((result) => result.actualCost).filter((cost): cost is NonNullable<typeof cost> => Boolean(cost)),
       finalVerdict: production.finalVerdict
     };
   });
   const sceneExecutions = productions.flatMap((production) => production.attempts.map((attempt) => ({
     purpose: "scene-visual" as const, sceneId: production.sceneId,
     requestedCapability: attempt.result.requestedCapability, executedCapability: attempt.result.executedCapability,
-    jobId: attempt.result.jobId, status: attempt.result.status, outputReference: attempt.result.outputReference, substitution: attempt.result.substitution
+    jobId: attempt.result.jobId, status: attempt.result.status, outputReference: attempt.result.outputReference, substitution: attempt.result.substitution,
+    costEstimate: attempt.result.costEstimate, actualCost: attempt.result.actualCost
   })));
   const narrationExecution = narration.segments?.length ? narration.segments.map((segment) => ({
     purpose: "narration" as const, sceneId: segment.sceneId, requestedCapability: segment.requestedCapability,
     executedCapability: segment.executedCapability, jobId: segment.jobId,
     status: segment.status === "generated" ? "completed" as const : "failed" as const,
-    outputReference: segment.outputReference, substitution: segment.substitution, error: segment.error
+    outputReference: segment.outputReference, substitution: segment.substitution, costEstimate: segment.costEstimate, actualCost: segment.actualCost, error: segment.error
   })) : narration.requestedCapability ? [{
     purpose: "narration" as const, requestedCapability: narration.requestedCapability, executedCapability: narration.executedCapability,
     jobId: narration.jobId, status: narration.status === "generated" ? "completed" as const : "failed" as const,

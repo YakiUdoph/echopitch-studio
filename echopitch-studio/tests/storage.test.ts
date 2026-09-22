@@ -32,9 +32,10 @@ const mediaPlan: MediaPlanItem[] = [{
   preferredVisualSource: "repository-evidence-card", mediaType: "evidence-card", productionRationale: "Use repository evidence."
 }];
 const productions: SceneProduction[] = [{ sceneId: "scene-1", mediaSource: "existing-product-evidence", attempts: [], finalVerdict: "WARNING" }];
+const costEstimate = { planId: "plan_persist1", status: "proposed" as const, estimatedCostUsd: 0.0014, currency: "USD" as const, raw: { result: { structuredContent: { plan_id: "plan_persist1", status: "proposed", total_est_cost_usd: 0.0014 } } } };
 const narration: NarrationProduction = {
   method: "livepeer-tts", status: "generated", requestedCapability: "gemini-tts", executedCapability: "gemini-tts", latencyMs: 4,
-  segments: [{ sceneId: "scene-1", narration: "Persists verified state.", status: "generated", requestedCapability: "gemini-tts", executedCapability: "gemini-tts", outputReference: "https://example.com/narration-scene-1.mp3", latencyMs: 4 }]
+  segments: [{ sceneId: "scene-1", narration: "Persists verified state.", status: "generated", requestedCapability: "gemini-tts", executedCapability: "gemini-tts", outputReference: "https://example.com/narration-scene-1.mp3", latencyMs: 4, costEstimate, actualCost: { paidUsd: 0.0013, units: 26, unitKind: "characters" } }]
 };
 const intelligenceResult = { intelligence: context.intelligence, claimLock: context.claimLock, storyManifest: context.manifest };
 
@@ -66,6 +67,8 @@ test("filesystem store survives fresh adapter instances and reconstructs the art
     assert.match(html, /Persists verified state/);
     assert.match(html, /https:\/\/example\.com\/narration-scene-1\.mp3/);
     assert.equal(artifactRun.narration.segments?.[0]?.sceneId, "scene-1");
+    assert.deepEqual(artifactRun.narration.segments?.[0]?.costEstimate, costEstimate);
+    assert.deepEqual(artifactRun.narration.segments?.[0]?.actualCost, { paidUsd: 0.0013, units: 26, unitKind: "characters" });
     assert.equal(html, renderPitchArtifact(restoredContext, artifactRun.mediaPlan, artifactRun.productions, artifactRun.narration));
   } finally {
     await rm(directory, { recursive: true, force: true });

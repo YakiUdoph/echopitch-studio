@@ -1,36 +1,45 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# EchoPitch Studio
 
-## Getting Started
+EchoPitch turns repository evidence into a claim-locked pitch storyboard, selectively generates explanatory media through Livepeer, and persists the final interactive artifact with evidence and production receipts.
 
-First, run the development server:
+## Local development
+
+Use Node.js 22.14 or newer. Copy `.env.example` to `.env.local`, configure the run store and GitHub token, then run:
 
 ```bash
+npm ci
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The production API route has a 300-second `maxDuration`. Filesystem storage is used outside production; production requires Upstash Redis.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Livepeer Creative MCP
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Production uses the official Creative MCP endpoint:
 
-## Learn More
+```text
+https://agent.livepeer.org/api/mcp/creative
+```
 
-To learn more about Next.js, take a look at the following resources:
+The current endpoint offers keyless demo credits, so no Livepeer API key is required. `LIVEPEER_MCP_URL` can override the endpoint, and the optional `LIVEPEER_IMAGE_CAPABILITY`, `LIVEPEER_VIDEO_CAPABILITY`, and `LIVEPEER_TTS_CAPABILITY` variables can request specific models.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Every Livepeer attempt follows the server's approval contract:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. Discover currently available capabilities with `list_capabilities`.
+2. Propose the exact single-step `create_media` request through `submit_plan`.
+3. Require a `proposed` plan with a numeric `total_est_cost_usd`; otherwise stop before generation.
+4. Approve that same plan with `confirm: true` and poll `get_plan` to completion.
+5. Persist the raw estimate response, per-attempt estimate, actual cost/units when returned, selected capability, job ID, substitution data, output URL, critic result, and repair history.
 
-## Deploy on Vercel
+Repository evidence remains preferred where it explains a scene. Livepeer generation is reserved for genuinely explanatory visuals and narration. Visual repair stays bounded to two attempts, and every repair receives a fresh estimate before approval.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Verification
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run build
+npm run typecheck
+npm run lint
+npm test
+```
+
+Live integration scripts can spend credits and are intentionally separate from the default test suite. Do not run them during routine engineering validation.

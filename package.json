@@ -11,6 +11,7 @@
     "typecheck": "npm --prefix echopitch-studio run typecheck",
     "test:intelligence": "npm --prefix echopitch-studio run test:intelligence",
     "test:generalization": "npm --prefix echopitch-studio run test:generalization",
+    "test:creative-mcp": "npm --prefix echopitch-studio run test:creative-mcp",
     "test:intelligence:live": "npm --prefix echopitch-studio run test:intelligence:live",
     "test:production": "npm --prefix echopitch-studio run test:production",
     "test:production:live": "npm --prefix echopitch-studio run test:production:live",

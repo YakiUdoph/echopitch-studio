@@ -154,7 +154,8 @@ test("Livepeer parser handles JSON, SSE, malformed results, outputs, and failed 
   assert.deepEqual(parseMcpResponse('{"result":{"ok":true}}', "application/json"), { result: { ok: true } });
   assert.deepEqual(parseMcpResponse('event: message\ndata: {"result":{"ok":true}}\n\n', "text/event-stream"), { result: { ok: true } });
   assert.throws(() => parseMcpResponse("not-json", "application/json"), /Malformed Livepeer/);
-  assert.equal(extractOutputReference({ result: { structuredContent: { output_url: "https://example.com/art.png" } } }), "https://example.com/art.png");
+  assert.equal(extractOutputReference({ result: { structuredContent: { url: "https://example.com/art.png" } } }), "https://example.com/art.png");
+  assert.equal(extractOutputReference({ result: { structuredContent: { output_url: "https://example.com/legacy.png" } } }), undefined);
   assert.throws(() => assertToolSuccess({ result: { isError: true, content: [{ text: "job failed" }] } }, "job"), /job failed/);
 });
 
@@ -207,9 +208,13 @@ test("Livepeer Creative MCP estimates before approval and persists exact cost ev
       { method: "tools/call", tool: "get_plan" }
     ]);
     const proposedStep = (requests[3].args?.steps as Array<{ args: Record<string, unknown> }>)[0];
-    assert.deepEqual({ action: proposedStep.args.action, model: proposedStep.args.model_override, ratio: proposedStep.args.aspect_ratio }, { action: "generate", model: "flux-schnell", ratio: "16:9" });
+    assert.deepEqual({ action: proposedStep.args.action, model: proposedStep.args.model_override, ratio: proposedStep.args.aspect_ratio, async: proposedStep.args.async }, { action: "generate", model: "flux-schnell", ratio: "16:9", async: false });
     assert.deepEqual(requests[4].args, { plan_id: "plan_keyless1", confirm: true });
     assert.ok(requests.every((request) => request.authorization === null));
+    assert.equal(result.diagnostics?.estimateAccepted, true);
+    assert.equal(result.diagnostics?.confirmationAccepted, true);
+    assert.equal(result.diagnostics?.outputExtraction, "found");
+    assert.deepEqual(result.diagnostics?.observations.map((item) => item.planStatus), ["running", "done"]);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -270,9 +275,130 @@ test("Livepeer Creative MCP estimates TTS with the exact create_media arguments 
     assert.equal(proposedArgs?.model_override, "gemini-tts");
     assert.equal(proposedArgs?.prompt, "Verified narration.");
     assert.equal(proposedArgs?.aspect_ratio, undefined);
+    assert.equal(proposedArgs?.async, false);
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("Creative MCP persists the real async-in-plan terminal failure and re-estimates the bounded repair", async () => {
+  const originalFetch = globalThis.fetch;
+  let proposalCount = 0;
+  let confirmedPlan = "";
+  const proposedAsyncValues: unknown[] = [];
+  globalThis.fetch = async (_input, init) => {
+    const request = JSON.parse(String(init?.body)) as { id?: string; method: string; params?: { name?: string; arguments?: Record<string, unknown> } };
+    if (request.method === "initialize") return Response.json({ jsonrpc: "2.0", id: request.id, result: {} });
+    if (request.method === "notifications/initialized") return new Response(null, { status: 202 });
+    if (request.params?.name === "list_capabilities") return Response.json({ jsonrpc: "2.0", id: request.id, result: { structuredContent: { capabilities: [{ name: "flux-schnell" }] } } });
+    if (request.params?.name === "submit_plan" && request.params.arguments?.steps) {
+      proposalCount += 1;
+      const planId = `plan_attempt${proposalCount}`;
+      const step = (request.params.arguments.steps as Array<{ args: Record<string, unknown> }>)[0];
+      proposedAsyncValues.push(step.args.async);
+      return Response.json({ jsonrpc: "2.0", id: request.id, result: { structuredContent: { plan_id: planId, status: "proposed", total_est_cost_usd: 0.0032 } } });
+    }
+    if (request.params?.name === "submit_plan" && request.params.arguments?.confirm === true) {
+      confirmedPlan = String(request.params.arguments.plan_id);
+      return Response.json({ jsonrpc: "2.0", id: request.id, result: { structuredContent: { plan_id: confirmedPlan, status: "running" } } });
+    }
+    if (request.params?.name === "get_plan") {
+      const jobId = confirmedPlan === "plan_attempt1" ? "mjob_attempt1" : "mjob_attempt2";
+      return Response.json({ jsonrpc: "2.0", id: request.id, result: { structuredContent: {
+        plan_id: confirmedPlan, status: "failed", total_actual_cost_usd: 0,
+        steps: [{ id: 1, tool: "create_media", status: "failed", error: `step returned async job_id ${jobId} — set async:false on plan steps that feed downstream` }],
+        error: `step 1 (create_media) failed: step returned async job_id ${jobId} — set async:false on plan steps that feed downstream`
+      } } });
+    }
+    return Response.json({ jsonrpc: "2.0", id: request.id, error: { message: "Unexpected request" } }, { status: 500 });
+  };
+  try {
+    const instruction = directManifest(context)[1];
+    const production = await produceScene(context, instruction, new LivepeerMcpClient({ endpoint: "https://example.test/api/mcp/creative", pollIntervalMs: 1 }));
+    assert.equal(production.finalVerdict, "FAILED");
+    assert.equal(production.attempts.length, 2);
+    assert.deepEqual(production.attempts.map((attempt) => attempt.result.costEstimate?.planId), ["plan_attempt1", "plan_attempt2"]);
+    assert.deepEqual(proposedAsyncValues, [false, false]);
+    for (const attempt of production.attempts) {
+      assert.equal(attempt.result.status, "failed");
+      assert.equal(attempt.result.actualCost?.costUsd, 0);
+      assert.equal(attempt.result.diagnostics?.estimateAccepted, true);
+      assert.equal(attempt.result.diagnostics?.confirmationAccepted, true);
+      assert.equal(attempt.result.diagnostics?.failureCategory, "plan-terminal-failure");
+      assert.equal(attempt.result.diagnostics?.observations.at(-1)?.planStatus, "failed");
+      assert.equal(attempt.result.diagnostics?.observations.at(-1)?.stepStates[0]?.status, "failed");
+      assert.match(attempt.result.diagnostics?.observations.at(-1)?.stepStates[0]?.jobId || "", /^mjob_attempt[12]$/);
+      assert.match(attempt.result.diagnostics?.observations.at(-1)?.stepStates[0]?.error || "", /set async:false/);
+      assert.equal(attempt.result.outputReference, undefined);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("Creative MCP continues through intermediate states and extracts the contracted nested url on terminal success", async () => {
+  const originalFetch = globalThis.fetch;
+  const states = ["queued", "running", "done"];
+  globalThis.fetch = async (_input, init) => {
+    const request = JSON.parse(String(init?.body)) as { id?: string; method: string; params?: { name?: string; arguments?: Record<string, unknown> } };
+    if (request.method === "initialize") return Response.json({ jsonrpc: "2.0", id: request.id, result: {} });
+    if (request.method === "notifications/initialized") return new Response(null, { status: 202 });
+    if (request.params?.name === "list_capabilities") return Response.json({ jsonrpc: "2.0", id: request.id, result: { structuredContent: { capabilities: [{ name: "flux-schnell" }] } } });
+    if (request.params?.name === "submit_plan" && request.params.arguments?.steps) return Response.json({ jsonrpc: "2.0", id: request.id, result: { structuredContent: { plan_id: "plan_progress1", status: "proposed", total_est_cost_usd: 0.0032 } } });
+    if (request.params?.name === "submit_plan") return Response.json({ jsonrpc: "2.0", id: request.id, result: { structuredContent: { plan_id: "plan_progress1", status: "running" } } });
+    if (request.params?.name === "get_plan") {
+      const status = states.shift() || "done";
+      return Response.json({ jsonrpc: "2.0", id: request.id, result: { structuredContent: {
+        plan_id: "plan_progress1", status,
+        steps: [{ id: 1, tool: "create_media", status, ...(status === "done" ? { result: { url: "https://example.com/contracted.png", capability: "flux-schnell" } } : {}) }]
+      } } });
+    }
+    return Response.json({ jsonrpc: "2.0", id: request.id, error: { message: "Unexpected request" } }, { status: 500 });
+  };
+  try {
+    const result = await new LivepeerMcpClient({ endpoint: "https://example.test/api/mcp/creative", pollIntervalMs: 1 }).generate({
+      sceneId: "progress", mediaSource: "livepeer-generated", mediaType: "image", requestedCapability: "flux-schnell",
+      prompt: "Contract fixture", claimIds: [], evidenceIds: [], continuity: "Test only."
+    });
+    assert.equal(result.status, "completed", result.error);
+    assert.equal(result.outputReference, "https://example.com/contracted.png");
+    assert.deepEqual(result.diagnostics?.observations.map((item) => item.planStatus), ["running", "queued", "running", "done"]);
+    assert.equal(result.diagnostics?.observations.at(-1)?.stepStates[0]?.hasOutput, true);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("Creative MCP distinguishes terminal success without output from polling timeout", async () => {
+  const run = async (terminalStatus: "done" | "running") => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (_input, init) => {
+      const request = JSON.parse(String(init?.body)) as { id?: string; method: string; params?: { name?: string; arguments?: Record<string, unknown> } };
+      if (request.method === "initialize") return Response.json({ jsonrpc: "2.0", id: request.id, result: {} });
+      if (request.method === "notifications/initialized") return new Response(null, { status: 202 });
+      if (request.params?.name === "list_capabilities") return Response.json({ jsonrpc: "2.0", id: request.id, result: { structuredContent: { capabilities: [{ name: "flux-schnell" }] } } });
+      if (request.params?.name === "submit_plan" && request.params.arguments?.steps) return Response.json({ jsonrpc: "2.0", id: request.id, result: { structuredContent: { plan_id: "plan_nooutput1", status: "proposed", total_est_cost_usd: 0.0032 } } });
+      if (request.params?.name === "submit_plan") return Response.json({ jsonrpc: "2.0", id: request.id, result: { structuredContent: { plan_id: "plan_nooutput1", status: "running" } } });
+      if (request.params?.name === "get_plan") return Response.json({ jsonrpc: "2.0", id: request.id, result: { structuredContent: { plan_id: "plan_nooutput1", status: terminalStatus, steps: [{ id: 1, tool: "create_media", status: terminalStatus }] } } });
+      return Response.json({ jsonrpc: "2.0", id: request.id, error: { message: "Unexpected request" } }, { status: 500 });
+    };
+    try {
+      return await new LivepeerMcpClient({ endpoint: "https://example.test/api/mcp/creative", pollIntervalMs: 1, timeoutMs: 8 }).generate({
+        sceneId: "no-output", mediaSource: "livepeer-generated", mediaType: "image", requestedCapability: "flux-schnell",
+        prompt: "No output fixture", claimIds: [], evidenceIds: [], continuity: "Test only."
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  };
+  const missing = await run("done");
+  assert.equal(missing.status, "failed");
+  assert.equal(missing.diagnostics?.failureCategory, "output-missing");
+  assert.match(missing.error || "", /completed without an output reference/);
+  const timedOut = await run("running");
+  assert.equal(timedOut.status, "timed-out");
+  assert.equal(timedOut.diagnostics?.failureCategory, "timeout");
+  assert.match(timedOut.error || "", /timed out/);
 });
 
 test("Critic rejects invalid artifacts, preserves provenance, and creates a bounded repair plan", async () => {
@@ -309,8 +435,10 @@ test("Critic accepts valid results and receipt retains attempts, claims, evidenc
   const instruction: ProductionInstruction = directManifest(context)[1];
   const firstEstimate = { planId: "plan_attempt1", status: "proposed" as const, estimatedCostUsd: 0.0032, currency: "USD" as const, raw: { attempt: 1 } };
   const secondEstimate = { planId: "plan_attempt2", status: "proposed" as const, estimatedCostUsd: 0.0032, currency: "USD" as const, raw: { attempt: 2 } };
-  const invalid = { sceneId: "scene-2", requestedCapability: "flux-schnell", prompt: instruction.prompt, latencyMs: 3, status: "failed" as const, costEstimate: firstEstimate, error: "invalid artifact" };
-  const valid = { sceneId: "scene-2", requestedCapability: "flux-schnell", executedCapability: "flux-schnell", prompt: instruction.prompt, outputReference: "https://example.com/final.png", latencyMs: 7, status: "completed" as const, costEstimate: secondEstimate, actualCost: { paidUsd: 0.0031, units: 1, unitKind: "megapixel" } };
+  const failedDiagnostics = { estimateAccepted: true, confirmationAccepted: true, planId: "plan_attempt1", observations: [], outputExtraction: "missing" as const, failureCategory: "output-missing" as const };
+  const successfulDiagnostics = { estimateAccepted: true, confirmationAccepted: true, planId: "plan_attempt2", observations: [], outputExtraction: "found" as const };
+  const invalid = { sceneId: "scene-2", requestedCapability: "flux-schnell", prompt: instruction.prompt, latencyMs: 3, status: "failed" as const, costEstimate: firstEstimate, diagnostics: failedDiagnostics, error: "invalid artifact" };
+  const valid = { sceneId: "scene-2", requestedCapability: "flux-schnell", executedCapability: "flux-schnell", prompt: instruction.prompt, outputReference: "https://example.com/final.png", latencyMs: 7, status: "completed" as const, costEstimate: secondEstimate, actualCost: { paidUsd: 0.0031, units: 1, unitKind: "megapixel" }, diagnostics: successfulDiagnostics };
   const production = await produceScene(context, instruction, new SequenceExecutor([invalid, valid]));
   assert.equal(production.finalVerdict, "ACCEPT");
   assert.equal(production.attempts.length, 2);
@@ -323,8 +451,10 @@ test("Critic accepts valid results and receipt retains attempts, claims, evidenc
   assert.equal(receipt.scenes[0].repairHistory.length, 1);
   assert.deepEqual(receipt.scenes[0].costEstimates, [firstEstimate, secondEstimate]);
   assert.deepEqual(receipt.scenes[0].actualCosts, [{ paidUsd: 0.0031, units: 1, unitKind: "megapixel" }]);
+  assert.deepEqual(receipt.scenes[0].executionDiagnostics, [failedDiagnostics, successfulDiagnostics]);
   assert.equal(receipt.capabilityExecutions[1].costEstimate?.planId, "plan_attempt2");
   assert.equal(receipt.capabilityExecutions[1].actualCost?.paidUsd, 0.0031);
+  assert.equal(receipt.capabilityExecutions[0].diagnostics?.failureCategory, "output-missing");
   assert.equal(receipt.totalLatencyMs, 10);
   assert.equal(receipt.narration.status, "text-only");
   assert.equal(receipt.narration.audioEmbedded, false);

@@ -12,6 +12,7 @@
     "test": "npm run test:intelligence",
     "test:intelligence": "node --experimental-strip-types --test tests/intelligence.test.ts tests/generalization.test.ts tests/production.test.ts tests/storage.test.ts",
     "test:generalization": "node --experimental-strip-types --test tests/generalization.test.ts",
+    "test:creative-mcp": "node --experimental-strip-types --test --test-name-pattern=\"Livepeer|Creative MCP\" tests/production.test.ts",
     "test:production": "node --experimental-strip-types --test tests/production.test.ts tests/storage.test.ts",
     "test:production:live": "node --experimental-strip-types scripts/gate-c-test.ts",
     "test:intelligence:live": "node --experimental-strip-types scripts/gate-b-test.ts",

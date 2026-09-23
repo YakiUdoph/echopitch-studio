@@ -25,7 +25,7 @@ export async function produceNarration(context: ProductionContext, executor: Gen
       requestedCapability: result.requestedCapability, executedCapability: result.executedCapability,
       outputReference: result.outputReference, jobId: result.jobId, latencyMs: result.latencyMs,
       error: generated ? undefined : result.error || "Livepeer TTS returned no audio artifact.", substitution: result.substitution,
-      costEstimate: result.costEstimate, actualCost: result.actualCost
+      costEstimate: result.costEstimate, actualCost: result.actualCost, diagnostics: result.diagnostics
     });
   }
   const failedSceneIds = segments.filter((segment) => segment.status === "failed").map((segment) => segment.sceneId);

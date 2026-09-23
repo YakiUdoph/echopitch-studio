@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import type { GenerationExecutor, LivepeerActualCost, LivepeerCostEstimate, LivepeerGenerationResult, ProductionInstruction } from "./types.ts";
+import type { GenerationExecutor, LivepeerActualCost, LivepeerCostEstimate, LivepeerExecutionDiagnostics, LivepeerFailureCategory, LivepeerGenerationResult, LivepeerPlanObservation, ProductionInstruction } from "./types.ts";
 
 type JsonObject = Record<string, unknown>;
 
@@ -37,6 +37,13 @@ export class LivepeerMcpClient implements GenerationExecutor {
     const requestedCapability = instruction.requestedCapability || defaultCapability(mediaType);
     let costEstimate: LivepeerCostEstimate | undefined;
     let estimateRaw: JsonObject | undefined;
+    let lastPayload: JsonObject | undefined;
+    const diagnostics: LivepeerExecutionDiagnostics = {
+      estimateAccepted: false,
+      confirmationAccepted: false,
+      observations: [],
+      outputExtraction: "not-attempted"
+    };
     try {
       await this.initialize();
       const capabilities = await this.discoverCapabilities();
@@ -47,7 +54,9 @@ export class LivepeerMcpClient implements GenerationExecutor {
         model_override: executedCapability,
         prompt: instruction.prompt,
         ...(mediaType === "video" ? { aspect_ratio: "16:9", duration: 5 } : mediaType === "image" ? { aspect_ratio: "16:9" } : {}),
-        async: true,
+        // submit_plan already executes in the background. A nested async create_media call
+        // returns only a job_id, which the plan executor correctly rejects as incomplete.
+        async: false,
         persist: false,
         session_id: `echopitch_scene_${safeId(instruction.sceneId)}`,
         idempotency_key: `echopitch_${safeId(instruction.sceneId)}_${crypto.randomUUID()}`
@@ -59,11 +68,20 @@ export class LivepeerMcpClient implements GenerationExecutor {
       estimateRaw = estimatePayload;
       assertToolSuccess(estimatePayload, `Livepeer cost estimate for ${instruction.sceneId}`);
       costEstimate = parseCostEstimate(estimatePayload, instruction.sceneId);
+      diagnostics.estimateAccepted = true;
+      diagnostics.planId = costEstimate.planId;
 
       let payload = await this.callTool("submit_plan", { plan_id: costEstimate.planId, confirm: true });
+      lastPayload = payload;
+      diagnostics.observations.push(summarizePlanPayload("confirmation", payload));
       assertToolSuccess(payload, `Livepeer plan approval for ${instruction.sceneId}`);
-      if (!extractOutputReference(payload)) payload = await this.pollPlan(costEstimate.planId, startedAt);
+      diagnostics.confirmationAccepted = true;
+      if (!extractOutputReference(payload)) payload = await this.pollPlan(costEstimate.planId, startedAt, (observation, raw) => {
+        diagnostics.observations.push(observation);
+        lastPayload = raw;
+      });
       const outputReference = extractOutputReference(payload);
+      diagnostics.outputExtraction = outputReference ? "found" : "missing";
       if (!outputReference) throw new Error("Livepeer completed without an output reference.");
       const jobId = extractString(payload, ["job_id", "jobId"]);
       const capabilityUsed = extractString(payload, ["capability_used", "capability", "executed_capability", "served_capability"]) || executedCapability;
@@ -72,12 +90,14 @@ export class LivepeerMcpClient implements GenerationExecutor {
         jobId, outputReference, latencyMs: Date.now() - startedAt, status: "completed",
         substitution: extractValue(payload, ["upstream_substitution", "model_note", "modelNote"]) || discoverySubstitution,
         capabilityDiscovery: { discoveredAt: new Date().toISOString(), availableCapabilities: capabilities.size, requestedAvailable: capabilities.has(requestedCapability) },
-        costEstimate, actualCost: extractActualCost(payload), raw: payload
+        costEstimate, actualCost: extractActualCost(payload), diagnostics, raw: payload
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const status = /timed out/i.test(message) ? "timed-out" : "failed";
-      return { sceneId: instruction.sceneId, requestedCapability, prompt: instruction.prompt, latencyMs: Date.now() - startedAt, status, costEstimate, error: message, raw: estimateRaw };
+      if (diagnostics.outputExtraction === "not-attempted" && diagnostics.confirmationAccepted) diagnostics.outputExtraction = "missing";
+      diagnostics.failureCategory = failureCategory(message, diagnostics);
+      return { sceneId: instruction.sceneId, requestedCapability, prompt: instruction.prompt, latencyMs: Date.now() - startedAt, status, costEstimate, actualCost: lastPayload ? extractActualCost(lastPayload) : undefined, diagnostics, error: message, raw: lastPayload || estimateRaw };
     }
   }
 
@@ -92,13 +112,18 @@ export class LivepeerMcpClient implements GenerationExecutor {
     return this.availableCapabilities;
   }
 
-  private async pollPlan(planId: string, startedAt: number): Promise<JsonObject> {
+  private async pollPlan(planId: string, startedAt: number, observe: (observation: LivepeerPlanObservation, payload: JsonObject) => void): Promise<JsonObject> {
     while (Date.now() - startedAt < this.timeoutMs) {
       const payload = await this.callTool("get_plan", { plan_id: planId });
       assertToolSuccess(payload, `Livepeer plan ${planId}`);
+      observe(summarizePlanPayload("poll", payload), payload);
       const status = (extractString(payload, ["status", "state"]) || "").toLowerCase();
       if (["failed", "partial", "cancelled", "canceled", "error"].includes(status)) throw new Error(`Livepeer plan ${planId} failed with status ${status}: ${collectText(payload)}`);
-      if (extractOutputReference(payload) && ["", "done", "completed", "complete", "succeeded", "success", "ready"].includes(status)) return payload;
+      if (["done", "completed", "complete", "succeeded", "success", "ready"].includes(status)) {
+        if (extractOutputReference(payload)) return payload;
+        throw new Error(`Livepeer plan ${planId} completed without an output reference.`);
+      }
+      if (!status && extractOutputReference(payload)) return payload;
       await new Promise((resolve) => setTimeout(resolve, this.pollIntervalMs));
     }
     throw new Error(`Livepeer plan ${planId} timed out after ${this.timeoutMs}ms.`);
@@ -133,10 +158,8 @@ export function parseMcpResponse(raw: string, contentType: string | null): JsonO
 }
 
 export function extractOutputReference(payload: JsonObject): string | undefined {
-  const direct = extractString(payload, ["output_url", "outputUrl", "url", "uri", "output_reference", "outputReference"]);
-  if (direct?.startsWith("http")) return direct;
-  const urls = `${collectText(payload)}\n${JSON.stringify(payload)}`.match(/https?:\/\/[^"'\s)\\]+/g) || [];
-  return urls.find((url) => /\.(?:png|jpe?g|webp|gif|mp4|webm|mov|m4v)(?:\?|$)/i.test(url))?.replace(/[.,]+$/, "") || urls.at(-1)?.replace(/[.,]+$/, "");
+  const url = extractString(payload, ["url"]);
+  return url && /^https:\/\//i.test(url) ? url : undefined;
 }
 
 export function assertToolSuccess(payload: JsonObject, label: string): void {
@@ -156,6 +179,40 @@ function extractValue(payload: JsonObject, keys: string[]): unknown { for (const
 function extractString(payload: JsonObject, keys: string[]): string | undefined { const value = extractValue(payload, keys); return typeof value === "string" && value ? value : undefined; }
 function extractNumber(payload: JsonObject, keys: string[]): number | undefined { const value = extractValue(payload, keys); return typeof value === "number" && Number.isFinite(value) ? value : undefined; }
 function collectText(payload: JsonObject): string { const content = object(payload.result)?.content; return Array.isArray(content) ? content.map((item) => object(item)?.text).filter((text): text is string => typeof text === "string").join("\n") : ""; }
+function summarizePlanPayload(phase: LivepeerPlanObservation["phase"], payload: JsonObject): LivepeerPlanObservation {
+  const stepStates = collectObjects(payload)
+    .filter((item) => ["create_media", "generate_project"].includes(String(item.tool || "")) && (item.id !== undefined || item.status !== undefined))
+    .map((item) => {
+      const error = typeof item.error === "string" ? sanitizeDiagnosticText(item.error) : undefined;
+      const jobId = typeof item.job_id === "string" ? item.job_id : error?.match(/\bmjob_[a-z0-9]{6,32}\b/i)?.[0];
+      return {
+        id: typeof item.id === "string" || typeof item.id === "number" ? item.id : undefined,
+        tool: typeof item.tool === "string" ? item.tool : undefined,
+        status: typeof item.status === "string" ? item.status : undefined,
+        jobId,
+        error,
+        hasOutput: Boolean(extractOutputReference(item))
+      };
+    });
+  return {
+    phase,
+    planStatus: extractString(payload, ["status", "state"]),
+    stepStates,
+    hasOutput: Boolean(extractOutputReference(payload)),
+    actualCostUsd: extractNumber(payload, ["total_actual_cost_usd", "actual_cost_usd"])
+  };
+}
+function failureCategory(message: string, diagnostics: LivepeerExecutionDiagnostics): LivepeerFailureCategory {
+  if (!diagnostics.estimateAccepted) return "estimate-rejected";
+  if (!diagnostics.confirmationAccepted) return "confirmation-rejected";
+  if (/timed out/i.test(message)) return "timeout";
+  if (/failed with status|status (?:failed|partial|cancelled|canceled|error)/i.test(message)) return "plan-terminal-failure";
+  if (/without an output reference/i.test(message)) return "output-missing";
+  return "transport-or-protocol";
+}
+function sanitizeDiagnosticText(value: string): string {
+  return value.replace(/(?:authorization|bearer|token)\s*[:=]\s*\S+/gi, "credential=[redacted]").replace(/\s+/g, " ").trim().slice(0, 500);
+}
 function object(value: unknown): JsonObject | undefined { return typeof value === "object" && value !== null && !Array.isArray(value) ? value as JsonObject : undefined; }
 function safeId(value: string) { return value.replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 80) || "scene"; }
 function numberEnv(name: string, fallback: number) { const value = Number(process.env[name]); return Number.isFinite(value) && value > 0 ? value : fallback; }

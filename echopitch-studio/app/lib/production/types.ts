@@ -44,6 +44,32 @@ export interface LivepeerActualCost {
   unitKind?: string;
 }
 
+export type LivepeerFailureCategory = "estimate-rejected" | "confirmation-rejected" | "plan-terminal-failure" | "output-missing" | "timeout" | "transport-or-protocol";
+
+export interface LivepeerPlanObservation {
+  phase: "confirmation" | "poll";
+  planStatus?: string;
+  stepStates: Array<{
+    id?: string | number;
+    tool?: string;
+    status?: string;
+    jobId?: string;
+    error?: string;
+    hasOutput: boolean;
+  }>;
+  hasOutput: boolean;
+  actualCostUsd?: number;
+}
+
+export interface LivepeerExecutionDiagnostics {
+  estimateAccepted: boolean;
+  confirmationAccepted: boolean;
+  planId?: string;
+  observations: LivepeerPlanObservation[];
+  outputExtraction: "not-attempted" | "found" | "missing";
+  failureCategory?: LivepeerFailureCategory;
+}
+
 export interface LivepeerGenerationResult {
   sceneId: string;
   requestedCapability: string;
@@ -61,6 +87,7 @@ export interface LivepeerGenerationResult {
   };
   costEstimate?: LivepeerCostEstimate;
   actualCost?: LivepeerActualCost;
+  diagnostics?: LivepeerExecutionDiagnostics;
   error?: string;
   raw?: Record<string, unknown>;
 }
@@ -118,6 +145,7 @@ export interface ProductionReceipt {
     failuresAndFallbacks: string[];
     costEstimates?: LivepeerCostEstimate[];
     actualCosts?: LivepeerActualCost[];
+    executionDiagnostics?: LivepeerExecutionDiagnostics[];
     finalVerdict: SceneProduction["finalVerdict"];
   }>;
   totalLatencyMs: number;
@@ -137,6 +165,7 @@ export interface ProductionReceipt {
     substitution?: unknown;
     costEstimate?: LivepeerCostEstimate;
     actualCost?: LivepeerActualCost;
+    diagnostics?: LivepeerExecutionDiagnostics;
     error?: string;
   }>;
   narration: {
@@ -165,6 +194,7 @@ export interface NarrationSegment {
   substitution?: unknown;
   costEstimate?: LivepeerCostEstimate;
   actualCost?: LivepeerActualCost;
+  diagnostics?: LivepeerExecutionDiagnostics;
 }
 
 export interface NarrationProduction {

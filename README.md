@@ -78,7 +78,7 @@ Upstash stores run state for serverless reconstruction. It is not part of reposi
 
 ## Demo
 
-- **Production deployment:** [current Vercel project](https://echopitch-studio-nyaknno-udofias-projects.vercel.app) — deployment succeeds, but Vercel access protection currently requires authentication.
+- **Production deployment:** [echopitch-studio-ten.vercel.app](https://echopitch-studio-ten.vercel.app)
 - **Demo video:** coming before final submission.
 - **Recommended demo input:** [`sindresorhus/ky`](https://github.com/sindresorhus/ky), used by the current foreign-repository integration gate; it is not hardcoded product behavior.
 

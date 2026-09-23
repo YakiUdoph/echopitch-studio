@@ -155,7 +155,11 @@ test("Livepeer parser handles JSON, SSE, malformed results, outputs, and failed 
   assert.deepEqual(parseMcpResponse('event: message\ndata: {"result":{"ok":true}}\n\n', "text/event-stream"), { result: { ok: true } });
   assert.throws(() => parseMcpResponse("not-json", "application/json"), /Malformed Livepeer/);
   assert.equal(extractOutputReference({ result: { structuredContent: { url: "https://example.com/art.png" } } }), "https://example.com/art.png");
-  assert.equal(extractOutputReference({ result: { structuredContent: { output_url: "https://example.com/legacy.png" } } }), undefined);
+  assert.equal(extractOutputReference({ result: { structuredContent: { status: "done", steps: [{ status: "done", output_url: "https://example.com/observed.png" }] } } }), "https://example.com/observed.png");
+  assert.equal(extractOutputReference({ result: { structuredContent: { output_url: "https://example.com/undocumented.png" } } }), undefined);
+  assert.equal(extractOutputReference({ result: { structuredContent: { status: "done", steps: [{ output_url: "http://example.com/insecure.png" }] } } }), undefined);
+  assert.equal(extractOutputReference({ result: { structuredContent: { status: "done", steps: [{ output_url: "https://" }] } } }), undefined);
+  assert.equal(extractOutputReference({ result: { content: [{ text: "url=https://example.com/arbitrary.png" }] } }), undefined);
   assert.throws(() => assertToolSuccess({ result: { isError: true, content: [{ text: "job failed" }] } }, "job"), /job failed/);
 });
 
@@ -180,7 +184,7 @@ test("Livepeer Creative MCP estimates before approval and persists exact cost ev
       return Response.json({ jsonrpc: "2.0", id: request.id, result: { structuredContent: { plan_id: "plan_keyless1", status: "running" } } });
     }
     if (request.method === "tools/call" && request.params?.name === "get_plan") {
-      return Response.json({ jsonrpc: "2.0", id: request.id, result: { structuredContent: { plan_id: "plan_keyless1", status: "done", total_actual_cost_usd: 0.0031, steps: [{ status: "done", result: { url: "https://example.com/keyless.png", job_id: "mjob_keyless", capability_used: "flux-schnell", cost_paid_usd: 0.0031, billable_units: 1, cost_unit_kind: "megapixel" } }] } } });
+      return Response.json({ jsonrpc: "2.0", id: request.id, result: { structuredContent: { plan_id: "plan_keyless1", status: "done", total_actual_cost_usd: 0.0031, steps: [{ id: 1, tool: "create_media", status: "done", output_url: "https://example.com/keyless.png", job_id: "mjob_keyless", capability_used: "flux-schnell", cost_paid_usd: 0.0031, billable_units: 1, cost_unit_kind: "megapixel" }] } } });
     }
     return Response.json({ jsonrpc: "2.0", id: request.id, error: { message: "Unexpected test request" } }, { status: 500 });
   };
@@ -215,6 +219,9 @@ test("Livepeer Creative MCP estimates before approval and persists exact cost ev
     assert.equal(result.diagnostics?.confirmationAccepted, true);
     assert.equal(result.diagnostics?.outputExtraction, "found");
     assert.deepEqual(result.diagnostics?.observations.map((item) => item.planStatus), ["running", "done"]);
+    assert.deepEqual(result.diagnostics?.expectedOutputPaths, ["result.structuredContent.url", "result.structuredContent.steps[].output_url"]);
+    assert.deepEqual(result.diagnostics?.observedOutputFields, [{ path: "result.structuredContent.steps[0].output_url", valueType: "string", isHttps: true }]);
+    assert.doesNotMatch(JSON.stringify(result.raw), /Verify keyless transport|idempotency_key/);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -259,7 +266,7 @@ test("Livepeer Creative MCP estimates TTS with the exact create_media arguments 
       return Response.json({ jsonrpc: "2.0", id: request.id, result: { structuredContent: { plan_id: "plan_tts123", status: "proposed", total_est_cost_usd: 0.0014 } } });
     }
     if (request.params?.name === "submit_plan" && request.params.arguments?.confirm === true) {
-      return Response.json({ jsonrpc: "2.0", id: request.id, result: { structuredContent: { plan_id: "plan_tts123", status: "done", steps: [{ result: { url: "https://example.com/voice.wav", capability_used: "gemini-tts" } }] } } });
+      return Response.json({ jsonrpc: "2.0", id: request.id, result: { structuredContent: { plan_id: "plan_tts123", status: "done", steps: [{ id: 1, tool: "create_media", status: "done", output_url: "https://example.com/voice.wav", capability_used: "gemini-tts" }] } } });
     }
     return Response.json({ jsonrpc: "2.0", id: request.id, error: { message: "Unexpected request" } }, { status: 500 });
   };
@@ -336,7 +343,7 @@ test("Creative MCP persists the real async-in-plan terminal failure and re-estim
   }
 });
 
-test("Creative MCP continues through intermediate states and extracts the contracted nested url on terminal success", async () => {
+test("Creative MCP continues through intermediate states and extracts the observed plan-step output_url on terminal success", async () => {
   const originalFetch = globalThis.fetch;
   const states = ["queued", "running", "done"];
   globalThis.fetch = async (_input, init) => {
@@ -350,7 +357,7 @@ test("Creative MCP continues through intermediate states and extracts the contra
       const status = states.shift() || "done";
       return Response.json({ jsonrpc: "2.0", id: request.id, result: { structuredContent: {
         plan_id: "plan_progress1", status,
-        steps: [{ id: 1, tool: "create_media", status, ...(status === "done" ? { result: { url: "https://example.com/contracted.png", capability: "flux-schnell" } } : {}) }]
+        steps: [{ id: 1, tool: "create_media", status, ...(status === "done" ? { output_url: "https://example.com/contracted.png" } : {}) }]
       } } });
     }
     return Response.json({ jsonrpc: "2.0", id: request.id, error: { message: "Unexpected request" } }, { status: 500 });
@@ -364,6 +371,9 @@ test("Creative MCP continues through intermediate states and extracts the contra
     assert.equal(result.outputReference, "https://example.com/contracted.png");
     assert.deepEqual(result.diagnostics?.observations.map((item) => item.planStatus), ["running", "queued", "running", "done"]);
     assert.equal(result.diagnostics?.observations.at(-1)?.stepStates[0]?.hasOutput, true);
+    assert.equal(result.diagnostics?.observations.at(-1)?.stepStates[0]?.outputFieldPresent, true);
+    assert.equal(result.diagnostics?.observations.at(-1)?.stepStates[0]?.outputType, "string");
+    assert.equal(result.diagnostics?.observations.at(-1)?.stepStates[0]?.outputIsHttps, true);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -435,8 +445,8 @@ test("Critic accepts valid results and receipt retains attempts, claims, evidenc
   const instruction: ProductionInstruction = directManifest(context)[1];
   const firstEstimate = { planId: "plan_attempt1", status: "proposed" as const, estimatedCostUsd: 0.0032, currency: "USD" as const, raw: { attempt: 1 } };
   const secondEstimate = { planId: "plan_attempt2", status: "proposed" as const, estimatedCostUsd: 0.0032, currency: "USD" as const, raw: { attempt: 2 } };
-  const failedDiagnostics = { estimateAccepted: true, confirmationAccepted: true, planId: "plan_attempt1", observations: [], outputExtraction: "missing" as const, failureCategory: "output-missing" as const };
-  const successfulDiagnostics = { estimateAccepted: true, confirmationAccepted: true, planId: "plan_attempt2", observations: [], outputExtraction: "found" as const };
+  const failedDiagnostics = { estimateAccepted: true, confirmationAccepted: true, planId: "plan_attempt1", observations: [], expectedOutputPaths: ["result.structuredContent.url", "result.structuredContent.steps[].output_url"], observedOutputFields: [], outputExtraction: "missing" as const, failureCategory: "output-missing" as const };
+  const successfulDiagnostics = { estimateAccepted: true, confirmationAccepted: true, planId: "plan_attempt2", observations: [], expectedOutputPaths: ["result.structuredContent.url", "result.structuredContent.steps[].output_url"], observedOutputFields: [{ path: "result.structuredContent.steps[0].output_url", valueType: "string", isHttps: true }], outputExtraction: "found" as const };
   const invalid = { sceneId: "scene-2", requestedCapability: "flux-schnell", prompt: instruction.prompt, latencyMs: 3, status: "failed" as const, costEstimate: firstEstimate, diagnostics: failedDiagnostics, error: "invalid artifact" };
   const valid = { sceneId: "scene-2", requestedCapability: "flux-schnell", executedCapability: "flux-schnell", prompt: instruction.prompt, outputReference: "https://example.com/final.png", latencyMs: 7, status: "completed" as const, costEstimate: secondEstimate, actualCost: { paidUsd: 0.0031, units: 1, unitKind: "megapixel" }, diagnostics: successfulDiagnostics };
   const production = await produceScene(context, instruction, new SequenceExecutor([invalid, valid]));

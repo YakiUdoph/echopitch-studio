@@ -56,8 +56,16 @@ export interface LivepeerPlanObservation {
     jobId?: string;
     error?: string;
     hasOutput: boolean;
+    outputFieldPresent: boolean;
+    outputType?: string;
+    outputIsHttps?: boolean;
   }>;
   hasOutput: boolean;
+  outputFields: Array<{
+    path: string;
+    valueType: string;
+    isHttps?: boolean;
+  }>;
   actualCostUsd?: number;
 }
 
@@ -66,6 +74,8 @@ export interface LivepeerExecutionDiagnostics {
   confirmationAccepted: boolean;
   planId?: string;
   observations: LivepeerPlanObservation[];
+  expectedOutputPaths: string[];
+  observedOutputFields: LivepeerPlanObservation["outputFields"];
   outputExtraction: "not-attempted" | "found" | "missing";
   failureCategory?: LivepeerFailureCategory;
 }

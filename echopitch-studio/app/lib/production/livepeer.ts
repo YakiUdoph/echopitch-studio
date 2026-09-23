@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import type { GenerationExecutor, LivepeerActualCost, LivepeerCostEstimate, LivepeerExecutionDiagnostics, LivepeerFailureCategory, LivepeerGenerationResult, LivepeerPlanObservation, ProductionInstruction } from "./types.ts";
 
 type JsonObject = Record<string, unknown>;
+const EXPECTED_OUTPUT_PATHS = ["result.structuredContent.url", "result.structuredContent.steps[].output_url"];
 
 export interface LivepeerClientOptions {
   endpoint?: string;
@@ -42,6 +43,8 @@ export class LivepeerMcpClient implements GenerationExecutor {
       estimateAccepted: false,
       confirmationAccepted: false,
       observations: [],
+      expectedOutputPaths: [...EXPECTED_OUTPUT_PATHS],
+      observedOutputFields: [],
       outputExtraction: "not-attempted"
     };
     try {
@@ -73,11 +76,14 @@ export class LivepeerMcpClient implements GenerationExecutor {
 
       let payload = await this.callTool("submit_plan", { plan_id: costEstimate.planId, confirm: true });
       lastPayload = payload;
-      diagnostics.observations.push(summarizePlanPayload("confirmation", payload));
+      const confirmationObservation = summarizePlanPayload("confirmation", payload);
+      diagnostics.observations.push(confirmationObservation);
+      diagnostics.observedOutputFields = confirmationObservation.outputFields;
       assertToolSuccess(payload, `Livepeer plan approval for ${instruction.sceneId}`);
       diagnostics.confirmationAccepted = true;
       if (!extractOutputReference(payload)) payload = await this.pollPlan(costEstimate.planId, startedAt, (observation, raw) => {
         diagnostics.observations.push(observation);
+        diagnostics.observedOutputFields = observation.outputFields;
         lastPayload = raw;
       });
       const outputReference = extractOutputReference(payload);
@@ -90,14 +96,14 @@ export class LivepeerMcpClient implements GenerationExecutor {
         jobId, outputReference, latencyMs: Date.now() - startedAt, status: "completed",
         substitution: extractValue(payload, ["upstream_substitution", "model_note", "modelNote"]) || discoverySubstitution,
         capabilityDiscovery: { discoveredAt: new Date().toISOString(), availableCapabilities: capabilities.size, requestedAvailable: capabilities.has(requestedCapability) },
-        costEstimate, actualCost: extractActualCost(payload), diagnostics, raw: payload
+        costEstimate, actualCost: extractActualCost(payload), diagnostics, raw: sanitizeProviderPayload(payload)
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const status = /timed out/i.test(message) ? "timed-out" : "failed";
       if (diagnostics.outputExtraction === "not-attempted" && diagnostics.confirmationAccepted) diagnostics.outputExtraction = "missing";
       diagnostics.failureCategory = failureCategory(message, diagnostics);
-      return { sceneId: instruction.sceneId, requestedCapability, prompt: instruction.prompt, latencyMs: Date.now() - startedAt, status, costEstimate, actualCost: lastPayload ? extractActualCost(lastPayload) : undefined, diagnostics, error: message, raw: lastPayload || estimateRaw };
+      return { sceneId: instruction.sceneId, requestedCapability, prompt: instruction.prompt, latencyMs: Date.now() - startedAt, status, costEstimate, actualCost: lastPayload ? extractActualCost(lastPayload) : undefined, diagnostics, error: message, raw: sanitizeProviderPayload(lastPayload || estimateRaw) };
     }
   }
 
@@ -158,8 +164,16 @@ export function parseMcpResponse(raw: string, contentType: string | null): JsonO
 }
 
 export function extractOutputReference(payload: JsonObject): string | undefined {
-  const url = extractString(payload, ["url"]);
-  return url && /^https:\/\//i.test(url) ? url : undefined;
+  const structuredContent = object(object(payload.result)?.structuredContent);
+  const directUrl = validHttpsUrl(structuredContent?.url);
+  if (directUrl) return directUrl;
+  const steps = structuredContent?.steps;
+  if (!Array.isArray(steps)) return undefined;
+  for (const value of steps) {
+    const stepUrl = validHttpsUrl(object(value)?.output_url);
+    if (stepUrl) return stepUrl;
+  }
+  return undefined;
 }
 
 export function assertToolSuccess(payload: JsonObject, label: string): void {
@@ -185,20 +199,26 @@ function summarizePlanPayload(phase: LivepeerPlanObservation["phase"], payload: 
     .map((item) => {
       const error = typeof item.error === "string" ? sanitizeDiagnosticText(item.error) : undefined;
       const jobId = typeof item.job_id === "string" ? item.job_id : error?.match(/\bmjob_[a-z0-9]{6,32}\b/i)?.[0];
+      const outputFieldPresent = Object.hasOwn(item, "output_url");
       return {
         id: typeof item.id === "string" || typeof item.id === "number" ? item.id : undefined,
         tool: typeof item.tool === "string" ? item.tool : undefined,
         status: typeof item.status === "string" ? item.status : undefined,
         jobId,
         error,
-        hasOutput: Boolean(extractOutputReference(item))
+        hasOutput: Boolean(validHttpsUrl(item.output_url)),
+        outputFieldPresent,
+        outputType: outputFieldPresent ? valueType(item.output_url) : undefined,
+        outputIsHttps: outputFieldPresent && typeof item.output_url === "string" ? Boolean(validHttpsUrl(item.output_url)) : undefined
       };
     });
+  const outputFields = inspectOutputFields(payload);
   return {
     phase,
     planStatus: extractString(payload, ["status", "state"]),
     stepStates,
     hasOutput: Boolean(extractOutputReference(payload)),
+    outputFields,
     actualCostUsd: extractNumber(payload, ["total_actual_cost_usd", "actual_cost_usd"])
   };
 }
@@ -213,6 +233,57 @@ function failureCategory(message: string, diagnostics: LivepeerExecutionDiagnost
 function sanitizeDiagnosticText(value: string): string {
   return value.replace(/(?:authorization|bearer|token)\s*[:=]\s*\S+/gi, "credential=[redacted]").replace(/\s+/g, " ").trim().slice(0, 500);
 }
+function inspectOutputFields(payload: JsonObject): LivepeerPlanObservation["outputFields"] {
+  const structuredContent = object(object(payload.result)?.structuredContent);
+  const fields: LivepeerPlanObservation["outputFields"] = [];
+  if (structuredContent && Object.hasOwn(structuredContent, "url")) {
+    fields.push({ path: "result.structuredContent.url", valueType: valueType(structuredContent.url), ...(typeof structuredContent.url === "string" ? { isHttps: Boolean(validHttpsUrl(structuredContent.url)) } : {}) });
+  }
+  if (Array.isArray(structuredContent?.steps)) {
+    structuredContent.steps.forEach((value, index) => {
+      const step = object(value);
+      if (step && Object.hasOwn(step, "output_url")) {
+        fields.push({ path: `result.structuredContent.steps[${index}].output_url`, valueType: valueType(step.output_url), ...(typeof step.output_url === "string" ? { isHttps: Boolean(validHttpsUrl(step.output_url)) } : {}) });
+      }
+    });
+  }
+  return fields;
+}
+function sanitizeProviderPayload(payload: JsonObject | undefined): JsonObject | undefined {
+  if (!payload) return undefined;
+  const result = object(payload.result);
+  const structuredContent = object(result?.structuredContent);
+  const sanitizedStructuredContent: JsonObject = {};
+  for (const key of ["plan_id", "status", "total_est_cost_usd", "total_actual_cost_usd", "url", "job_id", "capability_used"] as const) {
+    if (structuredContent && structuredContent[key] !== undefined) sanitizedStructuredContent[key] = structuredContent[key];
+  }
+  if (Array.isArray(structuredContent?.steps)) {
+    sanitizedStructuredContent.steps = structuredContent.steps.map((value) => {
+      const step = object(value);
+      if (!step) return { valueType: valueType(value) };
+      const summary: JsonObject = {};
+      for (const key of ["id", "tool", "label", "status", "est_cost_usd", "elapsed_ms", "job_id", "output_url"] as const) {
+        if (step[key] !== undefined) summary[key] = step[key];
+      }
+      if (typeof step.error === "string") summary.error = sanitizeDiagnosticText(step.error);
+      return summary;
+    });
+  }
+  return {
+    ...(payload.error !== undefined ? { error: sanitizeDiagnosticText(typeof payload.error === "string" ? payload.error : JSON.stringify(payload.error)) } : {}),
+    result: { ...(result?.isError !== undefined ? { isError: result.isError } : {}), structuredContent: sanitizedStructuredContent }
+  };
+}
+function validHttpsUrl(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "https:" && Boolean(parsed.hostname) ? value : undefined;
+  } catch {
+    return undefined;
+  }
+}
+function valueType(value: unknown): string { return value === null ? "null" : Array.isArray(value) ? "array" : typeof value; }
 function object(value: unknown): JsonObject | undefined { return typeof value === "object" && value !== null && !Array.isArray(value) ? value as JsonObject : undefined; }
 function safeId(value: string) { return value.replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 80) || "scene"; }
 function numberEnv(name: string, fallback: number) { const value = Number(process.env[name]); return Number.isFinite(value) && value > 0 ? value : fallback; }
@@ -223,7 +294,7 @@ function parseCostEstimate(payload: JsonObject, sceneId: string): LivepeerCostEs
   if (!planId || status !== "proposed" || estimatedCostUsd === undefined || estimatedCostUsd < 0) {
     throw new Error(`Livepeer cost estimate for ${sceneId} did not return a valid proposed plan and numeric USD estimate.`);
   }
-  return { planId, status: "proposed", estimatedCostUsd, currency: "USD", raw: payload };
+  return { planId, status: "proposed", estimatedCostUsd, currency: "USD", raw: sanitizeProviderPayload(payload) || {} };
 }
 function extractActualCost(payload: JsonObject): LivepeerActualCost | undefined {
   const actualCost: LivepeerActualCost = {

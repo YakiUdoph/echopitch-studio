@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import vm from "node:vm";
-import { assemblePitch, assertToolSuccess, createMediaPlan, createProductionReceipt, createRepairPlan, directManifest, evaluateScene, extractOutputReference, LivepeerMcpClient, parseMcpResponse, produceNarration, produceScene, SequenceExecutor } from "../app/lib/production/index.ts";
+import { assemblePitch, assertToolSuccess, createMediaPlan, createProductionReceipt, createRepairPlan, describeProductionFailure, directManifest, evaluateScene, extractOutputReference, LivepeerMcpClient, parseMcpResponse, produceNarration, produceScene, SequenceExecutor } from "../app/lib/production/index.ts";
 import type { GenerationExecutor, LivepeerGenerationResult, ProductionContext, ProductionInstruction } from "../app/lib/production/types.ts";
 
 const context: ProductionContext = {
@@ -287,6 +287,22 @@ test("Critic rejects invalid artifacts, preserves provenance, and creates a boun
   const production = await produceScene(context, instruction, new SequenceExecutor([failed, failed]));
   assert.equal(production.attempts.length, 2);
   assert.equal(production.finalVerdict, "FAILED");
+  assert.equal(
+    describeProductionFailure(context, [production]),
+    "Production stopped. Scene 2 (Explain architecture) could not produce usable media after 2 bounded attempts. Livepeer image generation failed before a valid asset was returned."
+  );
+});
+
+test("production failure summaries expose a safe scene-specific failure category", async () => {
+  const instruction = directManifest(context)[1];
+  const failed = await produceScene(context, instruction, new SequenceExecutor([
+    { sceneId: "scene-2", requestedCapability: "flux-schnell", prompt: instruction.prompt, latencyMs: 1, status: "failed", error: "Livepeer cost estimate for scene-2 did not return a valid proposed plan and numeric USD estimate." },
+    { sceneId: "scene-2", requestedCapability: "flux-schnell", prompt: instruction.prompt, latencyMs: 1, status: "failed", error: "Livepeer cost estimate for scene-2 did not return a valid proposed plan and numeric USD estimate." }
+  ]));
+  const message = describeProductionFailure(context, [failed]);
+  assert.match(message, /Scene 2 \(Explain architecture\).*2 bounded attempts/);
+  assert.match(message, /flux-schnell did not return a valid pre-run estimate, so generation was not confirmed/);
+  assert.doesNotMatch(message, /plan_[A-Za-z0-9]+|stack|JSON-RPC/i);
 });
 
 test("Critic accepts valid results and receipt retains attempts, claims, evidence, latency, and repair history", async () => {

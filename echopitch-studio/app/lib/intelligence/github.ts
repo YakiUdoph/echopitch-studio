@@ -10,7 +10,7 @@ interface GitHubRepository {
   language: string | null;
 }
 
-interface GitTreeItem {
+export interface GitTreeItem {
   path: string;
   type: "blob" | "tree";
   size?: number;
@@ -69,12 +69,7 @@ export async function collectGitHubRepository(input: string): Promise<CollectedR
     `https://api.github.com/repos/${owner}/${name}/git/trees/${encodeURIComponent(repository.default_branch)}?recursive=1`
   );
 
-  const selected = tree.tree
-    .filter((item) => item.type === "blob" && isUsefulPath(item.path, item.size))
-    .map((item) => ({ ...item, score: scorePath(item.path) }))
-    .filter((item) => item.score > 0)
-    .sort((left, right) => right.score - left.score || left.path.localeCompare(right.path))
-    .slice(0, MAX_FILES);
+  const selected = selectUsefulRepositoryFiles(tree.tree);
 
   let totalBytes = 0;
   const files: CollectedFile[] = [];
@@ -121,23 +116,33 @@ export function evidenceFromFile(file: CollectedFile, reason: string, excerpt: s
   };
 }
 
+export function selectUsefulRepositoryFiles(items: GitTreeItem[], limit = MAX_FILES): Array<GitTreeItem & { score: number }> {
+  return items
+    .filter((item) => item.type === "blob" && isUsefulPath(item.path, item.size))
+    .map((item) => ({ ...item, score: scorePath(item.path) }))
+    .filter((item) => item.score > 0)
+    .sort((left, right) => right.score - left.score || left.path.localeCompare(right.path))
+    .slice(0, limit);
+}
+
 function isUsefulPath(path: string, size = 0): boolean {
   const normalized = path.toLowerCase();
   if (size > MAX_FILE_BYTES || size === 0) return false;
   if (/(^|\/)(node_modules|dist|build|out|coverage|\.next|vendor|generated|fixtures?|snapshots?|public\/assets)(\/|$)/.test(normalized)) return false;
   if (/(^|\/)(package-lock|pnpm-lock|yarn\.lock|bun\.lockb?|composer\.lock|cargo\.lock)$/.test(normalized)) return false;
   if (/\.(png|jpe?g|gif|webp|ico|pdf|zip|gz|mp4|webm|mov|mp3|wav|woff2?|ttf|eot|map|min\.js)$/i.test(normalized)) return false;
-  return /(^|\/)(readme[^/]*|package\.json|pyproject\.toml|cargo\.toml|go\.mod|requirements[^/]*\.txt|dockerfile|compose\.ya?ml|next\.config\.[^/]+|tsconfig\.json|[^/]+\.(ts|tsx|js|jsx|py|go|rs|java|rb|php|md|mdx|ya?ml|toml|graphql|prisma|proto))$/i.test(path);
+  return /(^|\/)(readme[^/]*|package\.json|pyproject\.toml|cargo\.toml|go\.mod|go\.sum|requirements[^/]*\.txt|pom\.xml|build\.gradle(?:\.kts)?|settings\.gradle(?:\.kts)?|gemfile|composer\.json|mix\.exs|deno\.jsonc?|dockerfile|compose\.ya?ml|next\.config\.[^/]+|tsconfig\.json|openapi\.(?:json|ya?ml)|[^/]+\.(ts|tsx|js|jsx|mjs|cjs|py|go|rs|java|kt|kts|cs|c|cc|cpp|h|hpp|swift|rb|php|ex|exs|sh|md|mdx|ya?ml|json|toml|xml|graphql|prisma|proto))$/i.test(path);
 }
 
 function scorePath(path: string): number {
   const value = path.toLowerCase();
   let score = 0;
   if (/(^|\/)readme(\.|$)/.test(value)) score += 100;
-  if (/(^|\/)(package\.json|pyproject\.toml|cargo\.toml|go\.mod|requirements[^/]*\.txt)$/.test(value)) score += 90;
-  if (/(^|\/)(app|src|server|api|routes?|services?|integrations?|lib|core|schemas?|types?)(\/|$)/.test(value)) score += 55;
-  if (/(route|handler|service|adapter|client|schema|types?|config|index|main|app)\.[^.]+$/.test(value)) score += 35;
-  if (/\.(ts|tsx|js|jsx|py|go|rs)$/.test(value)) score += 20;
+  if (/(^|\/)(package\.json|pyproject\.toml|cargo\.toml|go\.mod|requirements[^/]*\.txt|pom\.xml|build\.gradle(?:\.kts)?|gemfile|composer\.json|mix\.exs|deno\.jsonc?)$/.test(value)) score += 90;
+  if (/(^|\/)(app|src|server|api|routes?|services?|integrations?|lib|core|schemas?|types?|cmd|pkg|internal|controllers?|components?|pages?|views?|modules?|crates?|packages?|apps?)(\/|$)/.test(value)) score += 55;
+  if (/(route|handler|service|adapter|client|schema|types?|config|index|main|app|server|program|application)\.[^.]+$/.test(value)) score += 35;
+  if (/\.(ts|tsx|js|jsx|mjs|cjs|py|go|rs|java|kt|kts|cs|c|cc|cpp|h|hpp|swift|rb|php|ex|exs|sh)$/.test(value)) score += 20;
+  if (/(^|\/)docs?\//.test(value)) score += 18;
   if (/\.(md|mdx)$/.test(value)) score += 12;
   score -= Math.min(25, value.split("/").length * 2);
   return score;
@@ -146,7 +151,7 @@ function scorePath(path: string): number {
 function evidenceKind(path: string): EvidenceKind {
   const value = path.toLowerCase();
   if (/(^|\/)readme|\/docs?\//.test(value) || /\.(md|mdx)$/.test(value)) return "documentation";
-  if (/(package\.json|pyproject\.toml|cargo\.toml|go\.mod|requirements.*\.txt)$/.test(value)) return "manifest";
+  if (/(package\.json|pyproject\.toml|cargo\.toml|go\.mod|requirements.*\.txt|pom\.xml|build\.gradle(?:\.kts)?|gemfile|composer\.json|mix\.exs|deno\.jsonc?)$/.test(value)) return "manifest";
   if (/(schema|types?|\.graphql|\.prisma|\.proto)/.test(value)) return "schema";
   if (/(config|dockerfile|compose|tsconfig)/.test(value)) return "configuration";
   return "source";

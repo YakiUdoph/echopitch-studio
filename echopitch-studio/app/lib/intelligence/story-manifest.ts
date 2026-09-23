@@ -24,14 +24,14 @@ export function createStoryManifest(
   targetDuration: number
 ): StoryManifest {
   const allowed = claimLock.claims.filter((claim) => claimLock.allowedClaimIds.includes(claim.id) && claim.allowedNarration);
-  const sceneCount = 4;
+  const sceneCount = Math.min(4, Math.max(1, allowed.length));
   const durations = distributeDuration(Math.max(sceneCount, Math.round(targetDuration)), sceneCount);
   const normalizedAudience = audience.trim() || "General audience";
   const normalizedGoal = pitchGoal.trim() || "Product overview";
   const purposes = goalPurposes[normalizedGoal] || goalPurposes["Product overview"];
   const audienceFrame = audienceFrames[normalizedAudience] || audienceFrames["General audience"];
   const scenes: StoryScene[] = Array.from({ length: sceneCount }, (_, index) => {
-    const claim = allowed[index % Math.max(allowed.length, 1)];
+    const claim = allowed[index];
     return sceneFromClaim(claim, index, durations[index], purposes[index], audienceFrame);
   });
   const provenance = scenes.flatMap((scene) => scene.evidenceReferences.map((reference) => ({

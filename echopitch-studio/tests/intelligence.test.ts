@@ -78,7 +78,7 @@ test("Story Manifest uses supported claims only and preserves narration-to-evide
     { id: "invented", claim: "Provides biometric authentication", source: "external" }
   ]);
   const manifest = createStoryManifest(intelligence, lock, "Judges", "Explain verified value", 90);
-  assert.equal(manifest.scenes.length, 4);
+  assert.equal(manifest.scenes.length, 1);
   assert.equal(manifest.scenes.reduce((total, scene) => total + scene.duration, 0), 90);
   assert.ok(manifest.scenes.every((scene) => !scene.claimIds.includes("invented")));
   assert.ok(manifest.scenes.every((scene) => scene.evidenceReferences.every((reference) => reference.evidenceIds.includes("ev-code"))));
@@ -91,7 +91,7 @@ test("Story Director uses audience and goal framing and bounds a 120-second mani
   assert.equal(manifest.audience, "Developers");
   assert.equal(manifest.pitchGoal, "Technical walkthrough");
   assert.match(manifest.title, /Technical walkthrough for Developers/);
-  assert.deepEqual(manifest.scenes.map((scene) => scene.duration), [30, 30, 30, 30]);
+  assert.deepEqual(manifest.scenes.map((scene) => scene.duration), [120]);
   assert.equal(manifest.scenes.reduce((total, scene) => total + scene.duration, 0), 120);
   assert.match(manifest.scenes[0].purpose, /verified system/i);
   assert.ok(manifest.scenes.every((scene) => /technical mechanisms and repository evidence/i.test(scene.visualIntent)));

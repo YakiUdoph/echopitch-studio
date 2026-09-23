@@ -24,6 +24,33 @@ export async function produceScene(context: ProductionContext, initial: Producti
   return { sceneId: initial.sceneId, mediaSource: initial.mediaSource, attempts, finalOutputReference: best?.outputReference, finalVerdict: best ? "WARNING" : "FAILED", warning: "Maximum of two attempts reached without Critic acceptance." };
 }
 
+export function describeProductionFailure(context: ProductionContext, productions: SceneProduction[]): string {
+  const production = productions.find((item) => item.finalVerdict === "FAILED");
+  if (!production) return "Production stopped because no usable scene artifact remained.";
+  const scene = context.manifest.scenes.find((item) => item.sceneId === production.sceneId);
+  const sceneNumber = production.sceneId.replace(/^scene-/, "");
+  const label = scene?.purpose ? `Scene ${sceneNumber} (${scene.purpose})` : `Scene ${sceneNumber}`;
+  if (production.mediaSource === "existing-product-evidence") {
+    return `Production stopped. ${label} could not use its planned repository evidence because no valid artifact reference was available.`;
+  }
+  const attempts = production.attempts.length;
+  const firstFailure = production.attempts[0]?.result;
+  const capability = firstFailure?.requestedCapability ? ` ${firstFailure.requestedCapability}` : "";
+  const category = publicFailureCategory(firstFailure?.error, firstFailure?.status);
+  return `Production stopped. ${label} could not produce usable media after ${attempts} bounded ${attempts === 1 ? "attempt" : "attempts"}. Livepeer${capability} ${category}`;
+}
+
+function publicFailureCategory(error?: string, status?: LivepeerGenerationResult["status"]): string {
+  const detail = error || "";
+  if (/capabilit.*(?:unavailable|no named|no supported)|discovery/i.test(detail)) return "capability discovery was unavailable.";
+  if (/cost estimate|proposed plan|numeric USD estimate/i.test(detail)) return "did not return a valid pre-run estimate, so generation was not confirmed.";
+  if (/plan approval|confirm/i.test(detail)) return "plan confirmation failed before a usable asset was returned.";
+  if (status === "timed-out" || /timed out/i.test(detail)) return "generation timed out before returning a usable asset.";
+  if (/completed without an output|output reference|valid asset/i.test(detail)) return "generation completed without returning a valid asset.";
+  if (/failed with status|cancelled|canceled/i.test(detail)) return "generation ended in a terminal failure state without a usable asset.";
+  return "generation failed before a valid asset was returned.";
+}
+
 export class SequenceExecutor implements GenerationExecutor {
   private index = 0;
   private readonly results: LivepeerGenerationResult[];

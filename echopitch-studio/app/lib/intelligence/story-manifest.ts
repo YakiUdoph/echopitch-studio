@@ -24,15 +24,18 @@ export function createStoryManifest(
   targetDuration: number
 ): StoryManifest {
   const allowed = claimLock.claims.filter((claim) => claimLock.allowedClaimIds.includes(claim.id) && claim.allowedNarration);
-  const sceneCount = Math.min(4, Math.max(1, allowed.length));
-  const durations = distributeDuration(Math.max(sceneCount, Math.round(targetDuration)), sceneCount);
+  const requestedDuration = Math.max(1, Math.round(targetDuration));
+  const desiredSceneCount = Math.max(1, Math.ceil(requestedDuration / 15));
+  const sceneCount = allowed.length ? Math.min(allowed.length, desiredSceneCount) : 1;
+  const truthfulDuration = Math.min(requestedDuration, sceneCount * 15);
+  const durations = distributeDuration(truthfulDuration, sceneCount);
   const normalizedAudience = audience.trim() || "General audience";
   const normalizedGoal = pitchGoal.trim() || "Product overview";
   const purposes = goalPurposes[normalizedGoal] || goalPurposes["Product overview"];
   const audienceFrame = audienceFrames[normalizedAudience] || audienceFrames["General audience"];
   const scenes: StoryScene[] = Array.from({ length: sceneCount }, (_, index) => {
     const claim = allowed[index];
-    return sceneFromClaim(claim, index, durations[index], purposes[index], audienceFrame);
+    return sceneFromClaim(claim, index, durations[index], purposes[index] || `Present verified implementation evidence ${index + 1}`, audienceFrame);
   });
   const provenance = scenes.flatMap((scene) => scene.evidenceReferences.map((reference) => ({
     sceneId: scene.sceneId,
@@ -44,7 +47,7 @@ export function createStoryManifest(
     title: `${intelligence.productName}: ${normalizedGoal} for ${normalizedAudience}`,
     audience: normalizedAudience,
     pitchGoal: normalizedGoal,
-    targetDuration: durations.reduce((total, value) => total + value, 0),
+    targetDuration: requestedDuration,
     scenes,
     provenance,
     blockedClaims: claimLock.claims

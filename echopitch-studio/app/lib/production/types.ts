@@ -198,6 +198,10 @@ export interface NarrationSegment {
   requestedCapability: string;
   executedCapability?: string;
   outputReference?: string;
+  durationSeconds?: number;
+  mimeType?: string;
+  sizeBytes?: number;
+  inspectionError?: string;
   jobId?: string;
   latencyMs: number;
   error?: string;
@@ -225,6 +229,7 @@ export interface FinalAssembly {
   downloadReference: string;
   format: "interactive-html";
   duration: number;
+  targetDuration?: number;
   sceneCount: number;
   sceneOrder: string[];
   status: "completed" | "failed";

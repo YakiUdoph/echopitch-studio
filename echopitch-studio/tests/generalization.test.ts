@@ -16,11 +16,21 @@ const shapes: Shape[] = [
   { name: "TypeScript/JavaScript library", files: [["lib/request.js", "export const load = url => fetch(url)"]], expectedCapability: "cap_http-client" },
   { name: "frontend application", files: [["ui/App.jsx", "import React, { useState } from 'react'; export default function App(){ const [open] = useState(false); return <button>{open}</button> }"]], expectedCapability: "cap_web-ui" },
   { name: "backend/API application", files: [["service/views.py", "from fastapi import APIRouter\nrouter = APIRouter()\n@router.get('/health')\ndef health(): return {'ok': True}"]], expectedCapability: "cap_http-api" },
-  { name: "Python repository without package.json", files: [["tools/runner.py", "import argparse\nif __name__ == '__main__':\n    argparse.ArgumentParser().parse_args()"]], expectedCapability: "cap_cli" },
-  { name: "sparse valid repository", files: [["Main.java", "public class Main { public static void main(String[] args) {} }"]], expectedCapability: "cap_application-entrypoint" },
-  { name: "nested monorepo", files: [["packages/worker/internal/main.go", "package main\nfunc main() {}"]], expectedCapability: "cap_application-entrypoint" },
+  { name: "Python project", files: [["cli.py", "import argparse\nif __name__ == '__main__': argparse.ArgumentParser()"]], expectedCapability: "cap_cli" },
+  { name: "Go project", files: [["main.go", "package main\nfunc main() {}"]], expectedCapability: "cap_application-entrypoint" },
+  { name: "Java/Kotlin project", files: [["Application.kt", "class Application { companion object { @JvmStatic fun main(args: Array<String>) {} } }"], ["Controller.java", "@RestController public class Controller { @GetMapping public String get(){ return \"ok\"; } }"]], expectedCapability: "cap_http-api" },
+  { name: "Rust project", files: [["main.rs", "fn main() { println!(\"ready\"); }"]], expectedCapability: "cap_application-entrypoint" },
   { name: "mixed-language repository", files: [["cmd/api/main.go", "package main\nfunc main() {}"], ["clients/sdk.rs", "pub fn request() { reqwest::get(\"https://example.test\"); }"]], expectedCapability: "cap_http-client" },
+  { name: "monorepo", files: [["packages/web/App.tsx", "export default function App(){ return <button onClick={()=>{}}>Go</button> }"], ["services/api/server.js", "app.get('/health', handler)"]], expectedCapability: "cap_web-ui" },
+  { name: "nested source tree", files: [["products/service/internal/cmd/main.go", "package main\nfunc main() {}"]], expectedCapability: "cap_application-entrypoint" },
+  { name: "repository without package.json", files: [["tools/runner.py", "import argparse\nif __name__ == '__main__': argparse.ArgumentParser()"]], expectedCapability: "cap_cli" },
+  { name: "repository without src directory", files: [["server.js", "export async function GET() { return fetch('https://example.test') }"]], expectedCapability: "cap_http-client" },
+  { name: "sparse valid implementation", files: [["Main.java", "public class Main { public static void main(String[] args) {} }"]], expectedCapability: "cap_application-entrypoint" },
+  { name: "README-heavy repository", files: [["README.md", "# Tool\n\nLong documentation for developers explaining a deliberately documented product.\n\n## Usage\nLots more prose."], ["bin/tool.py", "import argparse\nargparse.ArgumentParser()"]], expectedCapability: "cap_cli" },
+  { name: "README marketing unsupported by code", files: [["README.md", "# Rocket\n\nThe fastest autonomous platform ever built."], ["main.py", "if __name__ == '__main__': print('ready')"]], expectedCapability: "cap_application-entrypoint" },
   { name: "insufficient implementation evidence", files: [["README.md", "# Vaporware\n\nThe fastest autonomous platform ever built.", "documentation"]] }
+  ,{ name: "unusual executable entrypoint", files: [["ops/launch/Application.java", "public class Application { public static void main(String[] args) {} }"]], expectedCapability: "cap_application-entrypoint" }
+  ,{ name: "API/schema-heavy repository", files: [["api/schema.graphql", "type Query { health: String }"], ["api/handler.ts", "export async function POST() { return new Response('ok') }"]], expectedCapability: "cap_typed-models" }
 ];
 
 test("bounded collector selection recognizes multiple ecosystems and unusual directories", () => {
@@ -72,7 +82,8 @@ test("Story Director uses each supported claim at most once instead of padding s
   const claimIds = manifest.scenes.flatMap((scene) => scene.claimIds);
   assert.equal(manifest.scenes.length, lock.allowedClaimIds.length);
   assert.equal(new Set(claimIds).size, claimIds.length);
-  assert.equal(manifest.scenes.reduce((sum, scene) => sum + scene.duration, 0), 120);
+  assert.equal(manifest.targetDuration, 120);
+  assert.ok(manifest.scenes.reduce((sum, scene) => sum + scene.duration, 0) <= 15 * lock.allowedClaimIds.length);
 });
 
 function repository(name: string, values: Shape["files"]): CollectedRepository {

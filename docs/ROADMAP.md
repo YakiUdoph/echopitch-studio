@@ -7,7 +7,7 @@ Implemented today:
 - canonical public GitHub repository input with audience, duration, and pitch goal;
 - bounded Repository Intelligence with explicit limitations;
 - deterministic ClaimLock and claim/evidence provenance;
-- four-scene Story Manifest;
+- evidence-sized Story Manifest with a requested duration target;
 - separate story and production direction;
 - repository evidence cards plus selective Livepeer image generation;
 - required Livepeer Creative MCP estimate-before-execution flow;

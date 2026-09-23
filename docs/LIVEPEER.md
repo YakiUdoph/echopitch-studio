@@ -79,11 +79,11 @@ For generated visual scenes, EchoPitch currently sends:
 - `model_override` set to the discovered image capability;
 - the claim-bounded scene prompt;
 - `aspect_ratio: 16:9`;
-- asynchronous execution;
+- `async: false`, because the plan step must return its media result to the parent plan;
 - `persist: false`;
 - a scene attribution tag and unique idempotency key.
 
-EchoPitch approves the proposed plan and polls `get_plan` until it finds a successful terminal status and output URL. Failed, partial, cancelled, or error plans fail the attempt. Polling also has a configured timeout.
+EchoPitch approves the proposed plan and polls `get_plan` until it finds a successful terminal status. It accepts the Creative MCP contract paths `result.structuredContent.url` and, for completed plan steps, `result.structuredContent.steps[].output_url`; only valid HTTPS media URLs are usable. Failed, partial, cancelled, error, successful-without-output, or timed-out plans fail the attempt.
 
 Because `persist` is currently false, EchoPitch stores the returned asset URL in the run but does not claim that Livepeer re-hosted it to durable storage.
 
@@ -92,6 +92,8 @@ Because `persist` is currently false, EchoPitch stores the returned asset URL in
 Each scene with narration is sent as a separate TTS production instruction. The `create_media` action is `tts`, the narration text is the prompt, and the selected TTS model is supplied as `model_override`. Each segment gets its own plan, estimate, approval, polling result, latency, output URL, and cost metadata.
 
 Final Assembly embeds per-scene audio only when every required segment is complete and matches the exact scene narration. If one segment fails or is missing, the artifact uses on-screen copy and the receipt says audio was not embedded.
+
+After generation, the server performs read-only inspection of each HTTPS MP3 asset and records its decoded duration, MIME type, and byte size when available. Persisted durations drive final scene timing. The artifact also reads browser media duration before playback, which keeps older persisted runs synchronized. A scene boundary therefore follows narration duration rather than cutting narration to satisfy a nominal slot.
 
 ## Repair
 
@@ -119,7 +121,7 @@ Fields are optional when the provider does not return them. Absence is not repor
 EchoPitch limits generation structurally rather than claiming an invented budget:
 
 - repository evidence is used when it is sufficient;
-- a four-scene manifest budgets at most one generated explanatory visual when an eligible scene exists;
+- the adaptive manifest budgets at most one generated explanatory visual when an eligible scene exists;
 - every narrated scene receives its own TTS request;
 - estimates come from Livepeer immediately before approval;
 - repair is limited to one additional visual attempt.

@@ -23,7 +23,7 @@ In roughly two to three minutes, prove that:
 
 `sindresorhus/ky` is the public foreign repository used by the current end-to-end gate script. It is a demo input, not hardcoded behavior. The exact landing-page configuration above uses supported UI values; run it before recording because GitHub contents and external media availability can change.
 
-The current Vercel deployment is access-protected. Remove or configure Vercel access protection for judges before publishing the final demo link. Do not claim the link is public until an unauthenticated check succeeds.
+The public deployment is [echopitch-studio-ten.vercel.app](https://echopitch-studio-ten.vercel.app). Confirm it still returns HTTP 200 without authentication immediately before recording.
 
 ## Demo sequence
 
@@ -47,8 +47,8 @@ Narration cue: “README language is not enough; implementation evidence control
 
 ### 0:50–1:15 — Plan
 
-1. Show the four-scene Story Manifest.
-2. Point out the selected audience, goal, exact total duration, narration, and evidence IDs.
+1. Show the evidence-sized Story Manifest.
+2. Point out the selected audience, goal, requested duration target, truthful planned runtime, narration, and evidence IDs.
 3. Open the technical media plan after it becomes available.
 
 Narration cue: “Story Director decides what to say; Production Director decides how to show it.”
@@ -75,10 +75,11 @@ Narration cue: “Repair is evidence-bounded and terminates after the second vis
 ### 2:10–2:45 — Deliver and prove provenance
 
 1. Play the final artifact and seek across a scene boundary.
-2. Show narration status. If TTS is unavailable, explicitly show the honest on-screen-copy fallback.
-3. Open the Evidence Receipt to trace narration to repository paths.
-4. Open the Production Receipt to show media source, capabilities, attempts, jobs, artifacts, and repair count.
-5. Open or download the final HTML artifact.
+2. Point out that decoded narration duration controls scene timing, so valid speech is neither cut nor padded with artificial silence.
+3. Show narration status. If TTS is unavailable, explicitly show the honest on-screen-copy fallback.
+4. Open the Evidence Receipt to trace narration to repository paths.
+5. Open the Production Receipt to show media source, capabilities, attempts, jobs, artifacts, and repair count.
+6. Open or download the final HTML artifact.
 
 Narration cue: “The result is playable, and every story and production decision remains inspectable.”
 

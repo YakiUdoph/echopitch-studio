@@ -9,6 +9,7 @@ import { FileSystemRunStore } from "../app/lib/runs/filesystem-run-store.ts";
 import { createRun } from "../app/lib/runs/store.ts";
 import { UpstashRunStore, type RedisRunClient } from "../app/lib/runs/upstash-run-store.ts";
 import type { PitchRun } from "../app/lib/runs/types.ts";
+import { pitchAudiences, pitchDurations, pitchGoals } from "../app/lib/runs/validation.ts";
 
 const context: ProductionContext = {
   intelligence: {
@@ -87,6 +88,24 @@ test("persisted runs retain the selected composer configuration", async () => {
   }
 });
 
+test("every audience, duration, and pitch-goal option survives persistence", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "echopitch-options-"));
+  try {
+    const store = new FileSystemRunStore(directory);
+    const inputs = [
+      ...pitchAudiences.map((audience) => ({ audience, pitchGoal: pitchGoals[0], targetDuration: pitchDurations[0] })),
+      ...pitchDurations.map((targetDuration) => ({ audience: pitchAudiences[0], pitchGoal: pitchGoals[0], targetDuration })),
+      ...pitchGoals.map((pitchGoal) => ({ audience: pitchAudiences[0], pitchGoal, targetDuration: pitchDurations[0] }))
+    ];
+    for (const input of inputs) {
+      const created = await createRun({ githubUrl: "https://github.com/example/options", ...input }, store);
+      assert.deepEqual((await new FileSystemRunStore(directory).get(created.id))?.input, { githubUrl: "https://github.com/example/options", ...input });
+    }
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("Upstash adapter contract survives fresh clients without process-local state", async () => {
   const durableService = new Map<string, unknown>();
   const firstRequestStore = new UpstashRunStore(new TestRedisClient(durableService));
@@ -97,6 +116,15 @@ test("Upstash adapter contract survives fresh clients without process-local stat
   const retrieved = await secondRequestStore.get(created.id);
   assert.equal(retrieved?.status, "planning");
   assert.equal(retrieved?.intelligenceResult?.storyManifest.title, "Durable pitch");
+});
+
+test("persistence failures reject the run instead of reporting success", async () => {
+  const failingStore = {
+    async get() { return undefined; },
+    async save() { throw new Error("persistence unavailable"); },
+    async update() { throw new Error("persistence unavailable"); }
+  };
+  await assert.rejects(() => createRun({ githubUrl: context.intelligence.repository.url, audience: "Judges", pitchGoal: "Explain", targetDuration: 30 }, failingStore), /persistence unavailable/);
 });
 
 test("stores reject traversal identifiers and artifact JSON cannot terminate its script", async () => {

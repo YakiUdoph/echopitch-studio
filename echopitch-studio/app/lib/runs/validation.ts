@@ -2,6 +2,22 @@ export const pitchAudiences = ["Hackathon judges", "Investors", "Potential custo
 export const pitchDurations = [30, 60, 90, 120] as const;
 export const pitchGoals = ["Product overview", "Hackathon pitch", "Investor pitch", "Technical walkthrough", "Customer demo"] as const;
 
+export type ValidPitchRunInput = {
+  githubUrl: string;
+  audience: (typeof pitchAudiences)[number];
+  pitchGoal: (typeof pitchGoals)[number];
+  targetDuration: (typeof pitchDurations)[number];
+};
+
+export function validatePitchRunInput(body: { githubUrl?: unknown; audience?: unknown; pitchGoal?: unknown; targetDuration?: unknown }): ValidPitchRunInput | undefined {
+  const githubUrl = normalizeGitHubRepositoryUrl(typeof body.githubUrl === "string" ? body.githubUrl : "");
+  const targetDuration = Number(body.targetDuration);
+  const audience = typeof body.audience === "string" && pitchAudiences.includes(body.audience as ValidPitchRunInput["audience"]) ? body.audience as ValidPitchRunInput["audience"] : undefined;
+  const pitchGoal = typeof body.pitchGoal === "string" && pitchGoals.includes(body.pitchGoal as ValidPitchRunInput["pitchGoal"]) ? body.pitchGoal as ValidPitchRunInput["pitchGoal"] : undefined;
+  if (!githubUrl || !pitchDurations.includes(targetDuration as ValidPitchRunInput["targetDuration"]) || !audience || !pitchGoal) return undefined;
+  return { githubUrl, audience, pitchGoal, targetDuration: targetDuration as ValidPitchRunInput["targetDuration"] };
+}
+
 export function normalizeGitHubRepositoryUrl(value: string): string | undefined {
   try {
     const url = new URL(value.trim());

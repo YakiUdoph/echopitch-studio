@@ -94,7 +94,7 @@ If no allowed claim is available, a scene says “Insufficient evidence” and r
 
 The Production Director turns each Story Manifest scene into a media plan and immutable claim-bounded production instruction. This separation exists because deciding **what may be said** is a different responsibility from deciding **how to show it**.
 
-The current four-scene plan scores explanatory moments and budgets at most one generated visual when a candidate exists. A scene can use:
+The current adaptive plan scores explanatory moments and budgets at most one generated visual when a candidate exists. A scene can use:
 
 1. a presentation-ready repository asset already present in evidence;
 2. a designed repository evidence card; or

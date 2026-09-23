@@ -20,7 +20,7 @@ The user manually reads code and documentation, decides which claims are safe, d
 
 **Repository → evidence-grounded autonomous pitch.**
 
-EchoPitch produces a four-scene interactive HTML pitch from a public GitHub repository. It exposes what it inspected, what it allowed or blocked, how each scene was produced, and what happened during media generation.
+EchoPitch produces an evidence-sized interactive HTML pitch from a public GitHub repository. It exposes what it inspected, what it allowed or blocked, how each scene was produced, and what happened during media generation.
 
 ## 6. User journey
 
@@ -70,7 +70,7 @@ EchoPitch produces a four-scene interactive HTML pitch from a public GitHub repo
 
 ### Story Director
 
-- Create exactly four scenes.
+- Create only as many scenes as distinct supported claims justify for the requested duration target.
 - Distribute the selected duration across those scenes.
 - Adapt scene purposes and visual framing to recognized audiences and goals.
 - Preserve claim and evidence references for every narrated statement.

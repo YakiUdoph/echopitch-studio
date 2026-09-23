@@ -2,7 +2,7 @@
 
 **Repository → evidence-grounded autonomous pitch.**
 
-EchoPitch reads a public software repository, determines what the product actually implements, verifies claims against repository evidence, directs a four-scene story from supported claims, uses Livepeer Agent where generated media is warranted, checks generated attempts against a bounded production contract, and delivers a playable HTML pitch with evidence and production receipts.
+EchoPitch reads a public software repository, determines what the product actually implements, verifies claims against repository evidence, directs an adaptive story from supported claims, uses Livepeer Agent where generated media is warranted, checks generated attempts against a bounded production contract, and delivers a playable HTML pitch with evidence and production receipts.
 
 Built for the Livepeer Agent Hackathon.
 
@@ -48,7 +48,7 @@ Each accepted claim carries repository evidence paths into the Story Manifest an
 
 - **Understand** — inspect a bounded set of prioritized repository files and extract product and implementation signals.
 - **Verify** — attach evidence to candidate claims and block anything ClaimLock cannot support.
-- **Plan** — produce a four-scene Story Manifest shaped by audience, duration, and pitch goal.
+- **Plan** — produce an evidence-sized Story Manifest shaped by audience, duration target, and pitch goal. Claims are never duplicated merely to pad runtime.
 - **Produce** — choose repository evidence or Livepeer generation per scene, then generate per-scene narration.
 - **Review** — check each generated attempt's instruction and execution metadata against narrative, claim, continuity, artifact, and technical criteria; repair at most once.
 - **Deliver** — assemble a playable HTML pitch and persist its evidence and production provenance.
@@ -118,12 +118,18 @@ The `test:*:live` and Livepeer gate scripts can invoke external services and are
 
 - Repository inspection is capped at 18 prioritized text files, 80 KB per file, and 360 KB total.
 - Only `SUPPORTED` claims with allowed narration enter scenes.
-- Repository evidence is preferred; a four-scene manifest currently budgets at most one explanatory Livepeer visual when a suitable candidate exists.
+- Repository evidence is preferred; the current Production Director budgets at most one explanatory Livepeer visual when a suitable candidate exists.
 - A valid estimate is mandatory before each Livepeer execution.
 - Generated visuals receive at most two attempts: the original plus one bounded repair.
 - A failed visual with no usable artifact blocks delivery; narration failure degrades honestly to on-screen copy.
+- Generated narration assets are inspected for duration, MIME type, and size. Final scene timing follows valid narration duration; the requested duration remains a planning target rather than a reason to cut or pad audio.
+- The player prepares audio only after a user gesture, keeps at most one scene narration active, reports rejected playback, and pauses recoverably when its browser tab is hidden.
 - The final artifact is marked delivered only after assembly and receipts are persisted.
 - Receipts use returned identifiers, costs, units, URLs, and failure data; EchoPitch does not fabricate them.
+
+The supported composer values are audiences `Hackathon judges`, `Investors`, `Potential customers`, `Developers`, and `General audience`; duration targets 30, 60, 90, and 120 seconds; and goals `Product overview`, `Hackathon pitch`, `Investor pitch`, `Technical walkthrough`, and `Customer demo`.
+
+Release scope: EchoPitch is repository-agnostic for accessible repositories with sufficient implementation evidence. Repositories without sufficient evidence fail truthfully rather than producing invented claims.
 
 ## Tech stack
 

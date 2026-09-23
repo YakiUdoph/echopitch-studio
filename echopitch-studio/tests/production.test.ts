@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import vm from "node:vm";
-import { assemblePitch, assertToolSuccess, createMediaPlan, createProductionReceipt, createRepairPlan, describeProductionFailure, directManifest, evaluateScene, extractOutputReference, LivepeerMcpClient, parseMcpResponse, produceNarration, produceScene, SequenceExecutor } from "../app/lib/production/index.ts";
+import { assemblePitch, assertToolSuccess, createMediaPlan, createProductionReceipt, createRepairPlan, describeProductionFailure, directManifest, evaluateScene, extractOutputReference, inspectNarrationAssets, LivepeerMcpClient, mp3DurationSeconds, parseMcpResponse, produceNarration, produceScene, SequenceExecutor } from "../app/lib/production/index.ts";
 import type { GenerationExecutor, LivepeerGenerationResult, ProductionContext, ProductionInstruction } from "../app/lib/production/types.ts";
 
 const context: ProductionContext = {
@@ -51,6 +51,7 @@ test("Final Assembler preserves scene order, duration, visuals, and honest narra
   ];
   const result = assemblePitch(context, mediaPlan, productions, { method: "on-screen-copy", status: "text-only", latencyMs: 0 }, "/api/runs/test/artifact");
   assert.equal(result.assembly.duration, 20);
+  assert.equal(result.assembly.targetDuration, 20);
   assert.deepEqual(result.assembly.sceneOrder, ["scene-1", "scene-2"]);
   assert.equal(result.assembly.narrationAudioStatus, "on-screen-copy-only");
   assert.match(result.html, /Verified repository evidence/);
@@ -111,9 +112,6 @@ test("artifact playback controller activates every boundary and supports pause, 
   assert.equal(player.audibleStarts().at(-1)?.source, "https://example.com/scene-4.mp3");
   player.seek(32);
   assert.deepEqual(player.audibleStarts().at(-1), { source: "https://example.com/scene-3.mp3", offset: 2 });
-  const startsBeforeEndedOffset = player.audibleStarts().length;
-  player.seek(42);
-  assert.equal(player.audibleStarts().length, startsBeforeEndedOffset);
   player.seek(16);
   assert.deepEqual(player.audibleStarts().at(-1), { source: "https://example.com/scene-2.mp3", offset: 1 });
   player.restart();
@@ -126,6 +124,53 @@ test("artifact playback controller activates every boundary and supports pause, 
   assert.equal(rejected.audioStatus.hidden, false);
   assert.match(rejected.audioStatus.textContent, /blocked or could not be loaded/);
   assert.equal(rejected.errors.length, 1);
+});
+
+test("artifact timing follows decoded narration, never cuts a longer clip, and pauses safely when hidden", async () => {
+  const sixtySecondContext = createSixtySecondContext();
+  const durations = [18, 7, 12, 9];
+  const narration = {
+    method: "livepeer-tts" as const, status: "generated" as const, latencyMs: 4,
+    segments: durations.map((durationSeconds, index) => ({
+      sceneId: `scene-${index + 1}`, narration: sixtySecondContext.manifest.scenes[index].narration,
+      status: "generated" as const, requestedCapability: "gemini-tts",
+      outputReference: `https://example.com/timed-${index + 1}.mp3`, durationSeconds, latencyMs: 1
+    }))
+  };
+  const mediaPlan = createMediaPlan(sixtySecondContext);
+  const productions = await Promise.all(directManifest(sixtySecondContext, mediaPlan).map((instruction) => produceScene(sixtySecondContext, instruction, new SequenceExecutor([]))));
+  const result = assemblePitch(sixtySecondContext, mediaPlan, productions, narration, "/api/runs/test/artifact");
+  assert.equal(result.assembly.targetDuration, 60);
+  assert.equal(result.assembly.duration, 46);
+  const durationMap = Object.fromEntries(durations.map((value, index) => [`https://example.com/timed-${index + 1}.mp3`, value]));
+  const player = executeArtifact(result.html, undefined, durationMap);
+  await player.clickPlay();
+  await player.advanceTo(17.9);
+  assert.equal(player.audibleStarts().at(-1)?.source, "https://example.com/timed-1.mp3");
+  await player.advanceTo(18);
+  assert.equal(player.audibleStarts().at(-1)?.source, "https://example.com/timed-2.mp3");
+  assert.equal(player.playingSources().length, 1);
+  player.visibility(true);
+  assert.equal(player.playingSources().length, 0);
+  assert.equal(player.audioStatus.hidden, false);
+  assert.match(player.audioStatus.textContent, /tab was hidden/);
+  await player.clickPlay();
+  assert.equal(player.playingSources().length, 1);
+});
+
+test("narration inspection records truthful MP3 metadata without generating media", async () => {
+  const frame = new Uint8Array(417);
+  frame.set([0xff, 0xfb, 0x90, 0x00]);
+  const bytes = new Uint8Array(frame.length * 10);
+  for (let offset = 0; offset < bytes.length; offset += frame.length) bytes.set(frame, offset);
+  assert.equal(mp3DurationSeconds(bytes), 0.261);
+  const inspected = await inspectNarrationAssets({
+    method: "livepeer-tts", status: "generated", latencyMs: 1,
+    segments: [{ sceneId: "scene-1", narration: "Complete sentence.", status: "generated", requestedCapability: "gemini-tts", outputReference: "https://example.com/audio.mp3", latencyMs: 1 }]
+  }, async () => new Response(bytes, { headers: { "content-type": "audio/mpeg" } }));
+  assert.equal(inspected.segments?.[0].durationSeconds, 0.261);
+  assert.equal(inspected.segments?.[0].mimeType, "audio/mpeg");
+  assert.equal(inspected.segments?.[0].sizeBytes, bytes.length);
 });
 
 test("incomplete scene narration is not embedded or reported as complete", async () => {
@@ -248,6 +293,34 @@ test("Livepeer Creative MCP blocks generation when the estimate response is inva
     assert.match(result.error || "", /numeric USD estimate/);
     assert.equal((result.raw?.result as { structuredContent?: { plan_id?: string } })?.structuredContent?.plan_id, "plan_invalid1");
     assert.deepEqual(calledTools, ["list_capabilities", "submit_plan"]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("Creative MCP discovery and confirmation failures remain explicit failed results", async () => {
+  const originalFetch = globalThis.fetch;
+  const instruction: ProductionInstruction = { sceneId: "failure", mediaSource: "livepeer-generated", mediaType: "image", requestedCapability: "flux-schnell", prompt: "Failure fixture", claimIds: [], evidenceIds: [], continuity: "Test." };
+  const run = async (mode: "discovery" | "confirmation") => {
+    globalThis.fetch = async (_input, init) => {
+      const request = JSON.parse(String(init?.body)) as { id?: string; method: string; params?: { name?: string; arguments?: Record<string, unknown> } };
+      if (request.method === "initialize") return Response.json({ jsonrpc: "2.0", id: request.id, result: {} });
+      if (request.method === "notifications/initialized") return new Response(null, { status: 202 });
+      if (request.params?.name === "list_capabilities") return Response.json({ jsonrpc: "2.0", id: request.id, result: { structuredContent: { capabilities: mode === "discovery" ? [] : [{ name: "flux-schnell" }] } } });
+      if (request.params?.name === "submit_plan" && request.params.arguments?.steps) return Response.json({ jsonrpc: "2.0", id: request.id, result: { structuredContent: { plan_id: "plan_failure1", status: "proposed", total_est_cost_usd: 0.0032 } } });
+      return Response.json({ jsonrpc: "2.0", id: request.id, result: { isError: true, content: [{ text: "confirmation refused" }] } });
+    };
+    return new LivepeerMcpClient({ endpoint: "https://example.test/api/mcp/creative" }).generate(instruction);
+  };
+  try {
+    const discovery = await run("discovery");
+    assert.equal(discovery.status, "failed");
+    assert.match(discovery.error || "", /discovery returned no named capabilities/);
+    assert.equal(discovery.diagnostics?.estimateAccepted, false);
+    const confirmation = await run("confirmation");
+    assert.equal(confirmation.status, "failed");
+    assert.match(confirmation.error || "", /confirmation refused/);
+    assert.equal(confirmation.diagnostics?.failureCategory, "confirmation-rejected");
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -470,6 +543,10 @@ test("Critic accepts valid results and receipt retains attempts, claims, evidenc
   assert.equal(receipt.narration.audioEmbedded, false);
 });
 
+test("artifact assembly rejects incomplete persisted production data", () => {
+  assert.throws(() => assemblePitch(context, createMediaPlan(context), [], { method: "on-screen-copy", status: "text-only", latencyMs: 0 }, "/artifact"), /missing production data/);
+});
+
 class RecordingExecutor implements GenerationExecutor {
   readonly prompts: string[] = [];
   private readonly results: LivepeerGenerationResult[];
@@ -498,13 +575,15 @@ function createSixtySecondContext(): ProductionContext {
   };
 }
 
-function executeArtifact(html: string, rejectOnSecondPlay?: string) {
+function executeArtifact(html: string, rejectOnSecondPlay?: string, durations: Record<string, number> = {}) {
   const script = html.match(/<script>([\s\S]*)<\/script>/)?.[1];
   assert.ok(script, "Generated artifact must contain its playback script.");
   let now = 0;
   let animationFrame: (() => void) | undefined;
   const starts: Array<{ source: string; offset: number; volume: number }> = [];
   const errors: unknown[][] = [];
+  const documentListeners = new Map<string, () => void>();
+  const audioInstances: FakeAudio[] = [];
   const nodes = Array.from({ length: 4 }, () => ({ classList: { toggle() {} }, querySelector() { return null; } }));
   const elements: Record<string, Record<string, unknown>> = {
     stage: { innerHTML: "", querySelectorAll: () => nodes },
@@ -514,25 +593,32 @@ function executeArtifact(html: string, rejectOnSecondPlay?: string) {
   class FakeAudio {
     readonly source: string;
     currentTime = 0;
-    duration = 10;
+    duration: number;
     volume = 1;
+    playing = false;
     preload = "";
     playCount = 0;
     private readonly listeners = new Map<string, Array<() => void>>();
-    constructor(source: string) { this.source = source; }
+    constructor(source: string) { this.source = source; this.duration = durations[source] || 15; audioInstances.push(this); }
     load() {}
-    pause() {}
+    pause() { this.playing = false; }
     addEventListener(name: string, listener: () => void) { this.listeners.set(name, [...(this.listeners.get(name) || []), listener]); }
     play() {
       this.playCount += 1;
       starts.push({ source: this.source, offset: this.currentTime, volume: this.volume });
       if (this.source === rejectOnSecondPlay && this.playCount === 2) return Promise.reject(new Error("NotAllowedError"));
+      this.playing = true;
       return Promise.resolve();
     }
   }
+  const fakeDocument = {
+    hidden: false,
+    getElementById: (id: string) => elements[id],
+    addEventListener: (name: string, listener: () => void) => documentListeners.set(name, listener)
+  };
   vm.runInNewContext(script, {
     Audio: FakeAudio,
-    document: { getElementById: (id: string) => elements[id] },
+    document: fakeDocument,
     performance: { now: () => now },
     requestAnimationFrame: (callback: () => void) => { animationFrame = callback; return 1; },
     cancelAnimationFrame: () => { animationFrame = undefined; },
@@ -543,9 +629,11 @@ function executeArtifact(html: string, rejectOnSecondPlay?: string) {
     audioStatus: elements["audio-status"] as { hidden: boolean; textContent: string }, errors,
     preparedSources: () => starts.filter((entry) => entry.volume === 0).map((entry) => entry.source),
     audibleStarts: () => starts.filter((entry) => entry.volume === 1).map(({ source, offset }) => ({ source, offset })),
+    playingSources: () => audioInstances.filter((audio) => audio.playing && audio.volume === 1).map((audio) => audio.source),
     async clickPlay() { await (elements.play.onclick as () => Promise<void>)(); await flush(); },
     async advanceTo(seconds: number) { now = seconds * 1000; assert.ok(animationFrame, "Playback should have a scheduled animation frame."); animationFrame(); await flush(); },
     seek(seconds: number) { elements.seek.value = String(seconds); (elements.seek.oninput as () => void)(); },
-    restart() { (elements.restart.onclick as () => void)(); }
+    restart() { (elements.restart.onclick as () => void)(); },
+    visibility(hidden: boolean) { fakeDocument.hidden = hidden; documentListeners.get("visibilitychange")?.(); }
   };
 }

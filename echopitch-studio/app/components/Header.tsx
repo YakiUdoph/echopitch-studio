@@ -40,18 +40,17 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="sticky top-0 z-40 w-full border-b border-cyan-500/20 bg-zinc-950/80 backdrop-blur-2xl transition-colors duration-300 shadow-[0_4px_25px_rgba(0,0,0,0.5)]">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        {/* Left: Custom Cyan Logo & EchoPitch Brand Title */}
+        {/* Left: EchoPitch visual identity and brand title */}
         <div className="flex items-center gap-3">
-          <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-900 shadow-[0_0_16px_rgba(6,182,212,0.6)] ring-1 ring-cyan-400/60 overflow-hidden group">
+          <div className="relative flex h-9 w-9 items-center justify-center">
             <Image
-              src="/logo.jpg"
-              alt="EchoPitch Logo"
+              src="/echopitch-logo.png"
+              alt=""
               width={36}
               height={36}
-              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110"
+              loading="eager"
+              className="h-full w-full object-contain"
             />
-            {/* Subtle Overlay Cyan Wave Glow */}
-            <div className="absolute inset-0 bg-cyan-400/10 mix-blend-overlay pointer-events-none" />
           </div>
 
           <div className="flex items-center gap-2">

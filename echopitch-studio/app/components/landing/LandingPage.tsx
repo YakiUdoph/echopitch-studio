@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { FormEvent, KeyboardEvent, MouseEvent, useEffect, useRef, useState } from "react";
 import { normalizeGitHubRepositoryUrl, pitchAudiences, pitchDurations, pitchGoals } from "../../lib/runs/validation";
@@ -10,7 +11,7 @@ const LIVEPEER_URL = "https://livepeer.org/";
 const navItems = ["How It Works", "Architecture", "Livepeer"] as const;
 type OverlayName = "How It Works" | "Architecture";
 
-function BrandMark() { return <svg className={styles.brandMark} viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="17" fill="#9C86CE"/><circle cx="17" cy="17" r="8.6" fill="#fff"/><circle cx="17" cy="17" r="3.7" fill="#151519"/></svg>; }
+function BrandMark() { return <Image className={styles.brandMark} src="/echopitch-logo.png" alt="" width={34} height={34} loading="eager"/>; }
 function Paperclip() { return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7.62 17.35a4.42 4.42 0 0 1-3.13-7.55l6.86-6.86a3.24 3.24 0 0 1 4.58 4.58l-6.7 6.7a2.1 2.1 0 0 1-2.97-2.97l6.2-6.2 1.06 1.06-6.2 6.2a.6.6 0 0 0 .85.85l6.7-6.7a1.74 1.74 0 1 0-2.46-2.46L5.55 10.86a2.92 2.92 0 1 0 4.13 4.13l5.83-5.83 1.06 1.06-5.83 5.83a4.4 4.4 0 0 1-3.12 1.3Z" fill="currentColor"/></svg>; }
 function SendArrow() { return <svg viewBox="0 0 12 13" aria-hidden="true"><path d="M6 12.2V2.9M2.35 6.55 6 2.9l3.65 3.65" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
 function ChipIcon({ type }: { type: "audience" | "duration" | "goal" }) {

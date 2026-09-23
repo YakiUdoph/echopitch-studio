@@ -3,8 +3,8 @@ import { ThemeProvider } from "./components/ThemeProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "EchoPitch — Verified software stories",
-  description: "Turn repository evidence into a claim-locked pitch and produced scene sequence.",
+  title: "EchoPitch Studio",
+  description: "Repository → evidence-grounded autonomous launch film.",
 };
 
 export default function RootLayout({

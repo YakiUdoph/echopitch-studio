@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PitchRun, RunStatus } from "../lib/runs/types";
@@ -64,7 +65,7 @@ export default function StudioWorkspace({ runId }: { runId: string }) {
 
   return <main className={styles.shell}>
     <header className={styles.header}>
-      <Link href="/" className={styles.brand}><span className={styles.mark}/><span>EchoPitch</span></Link>
+      <Link href="/" className={styles.brand}><Image className={styles.brandLogo} src="/echopitch-logo.png" alt="" width={30} height={30} loading="eager"/><span>EchoPitch</span></Link>
       <div className={styles.runMeta}><span className={styles.liveDot}/><span>{runStatusLabel(run.status)}</span><code>{run.id.slice(0, 8)}</code></div>
     </header>
     <section className={styles.pipeline} aria-label="Production pipeline">{stages.map((stage, index) => <div key={stage.key} className={`${styles.stage} ${rank[run.status] >= index ? styles.complete : ""} ${run.status === stage.key ? styles.active : ""}`}><span>{String(index + 1).padStart(2, "0")}</span>{stage.label}</div>)}</section>
@@ -172,7 +173,7 @@ function verdictLabel(verdict: NonNullable<PitchRun["productions"]>[number]["fin
 }
 function formatDuration(seconds: number): string { return seconds === 120 ? "2 minutes" : `${seconds} seconds`; }
 function plural(count: number, singular: string, pluralValue: string): string { return count === 1 ? singular : pluralValue; }
-function Empty({ title, message }: { title: string; message: string }) { return <main className={styles.empty}><span className={styles.mark}/><h1>{title}</h1><p>{message}</p><Link href="/">Return to EchoPitch</Link></main>; }
+function Empty({ title, message }: { title: string; message: string }) { return <main className={styles.empty}><Image className={styles.brandLogo} src="/echopitch-logo.png" alt="" width={30} height={30} loading="eager"/><h1>{title}</h1><p>{message}</p><Link href="/">Return to EchoPitch</Link></main>; }
 function PanelHead({ number, title, status }: { number: string; title: string; status: string }) { return <header className={styles.panelHead}><div><span>{number}</span><h2>{title}</h2></div><code>{status}</code></header>; }
 function Metric({ label, value, suffix, text }: { label: string; value?: number; suffix?: string; text?: string }) { return <div className={styles.metric}><b>{text ?? `${value}${suffix || ""}`}</b><span>{label}</span></div>; }
 function Working({ text }: { text: string }) { return <p className={styles.working}>{text}</p>; }
